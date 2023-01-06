@@ -1,0 +1,50 @@
+{
+   "language": {
+      "ENG": "Language",
+      "RUS": "Язык"
+   },
+   "english": {
+      "ENG": "English",
+      "RUS": "Английский"
+   },
+   "russian": {
+      "ENG": "Russian",
+      "RUS": "Русский"
+   },
+   "crosshairFolder": {
+      "ENG": "Crosshair Settings",
+      "RUS": "Настройки курсора"
+   },
+   "crosshairEnabled": {
+      "ENG": "Crosshair Enabled",
+      "RUS": "Показывать курсор"
+   },
+   "crosshairRadius": {
+      "ENG": "Crosshair Radius",
+      "RUS": "Радиус курсора"
+   },
+   "crosshairLinesEnd": {
+      "ENG": "Crosshair Lines",
+      "RUS": "Черты курсора"
+   },
+   "crosshairColor": {
+      "ENG": "Crosshair Color",
+      "RUS": "Цвет курсора"
+   },
+   "openImageFiles": {
+      "ENG": "Upload trees images",
+      "RUS": "Загрузить фотографии деревьев"
+   },
+   "closeControls": {
+      "ENG": "Close Controls",
+      "RUS": "Свернуть настройки"
+   },
+   "openControls": {
+      "ENG": "Open Controls",
+      "RUS": "Открыть настройки"
+   },
+   "title": {
+      "ENG": "Trees Ruler",
+      "RUS": "Метрия деревьев"
+   }
+}
