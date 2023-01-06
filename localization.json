@@ -43,6 +43,14 @@
       "ENG": "Open Controls",
       "RUS": "Открыть настройки"
    },
+   "controls": {
+      "ENG": "Controls",
+      "RUS": "Настройки"
+   },
+   "imageSize": {
+      "ENG": "Image size (pixels)",
+      "RUS": "Размер фото (пиксели)"
+   },
    "title": {
       "ENG": "Trees Ruler",
       "RUS": "Метрия деревьев"
