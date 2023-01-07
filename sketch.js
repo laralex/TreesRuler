@@ -25,8 +25,8 @@ let crosshairSettings = new function() {
 }();
 
 let zoomSettings = new function() {
-  this.x = 0;
-  this.y = 0;
+  this.panX = 0;
+  this.panY = 0;
   this.zoom = 1;
   this.zoomMin = 0.01;
   this.zoomMax = 100;
@@ -51,13 +51,13 @@ class ImageAABBView {
     this.imageHeight = imageHeight;
   }
 
-  toScreenBbox(screenWidth, screenHeight, zoomSettings) {
-    let width = this.imageWidth*zoomSettings.zoom;
-    let height = this.imageHeight*zoomSettings.zoom;
+  toScreenBbox(screenWidth, screenHeight, zoom, panX, panY) {
+    let width = this.imageWidth*zoom;
+    let height = this.imageHeight*zoom;
     return {
-      left: screenWidth/2-width/2 - zoomSettings.x*width,
+      left: screenWidth/2-width/2 - panX*width,
       width: width,
-      top: screenHeight/2-height/2 - zoomSettings.y*height,
+      top: screenHeight/2-height/2 - panY*height,
       height: height,
     }
   }
@@ -81,7 +81,7 @@ function setupGui(gui, panel) {
     barMode: 'above', // none, overlay, above, offset
     panelMode: 'inner',
     panelOverflowBehavior: 'overflow',
-    pollRateMS: 750,
+    pollRateMS: 300,
     opacity: panel.guiOpacity,
     open: true
   });
@@ -113,7 +113,7 @@ function setupGui(gui, panel) {
     {
       type: 'folder',
       label: getLocalized('zoomFolder'),
-      open: true
+      open: false
     },
 
     {
@@ -190,13 +190,13 @@ function setupGui(gui, panel) {
       type: 'range',
       label: getLocalized('zoomX'),
       min: -0.5, max: 0.5, step: 0.01,
-      property: 'x'
+      property: 'panX'
     },
     {
       type: 'range',
       label: getLocalized('zoomY'),
       min: -0.5, max: 0.5, step: 0.01,
-      property: 'y'
+      property: 'panY'
     },
     {
       type: 'range',
@@ -246,8 +246,8 @@ function setupGui(gui, panel) {
 }
 
 function resetZoom() {
-  zoomSettings.x = 0;
-  zoomSettings.y = 0;
+  zoomSettings.panX = 0;
+  zoomSettings.panY = 0;
   zoomSettings.zoom = min(windowHeight / img.height, windowWidth / img.width);
 }
 
@@ -305,12 +305,12 @@ function drawZoomRect(bbox) {
 
 function draw() {
   clear();
-  if (img !== undefined) {
-    let zoomScreenBbox = imgView.toScreenBbox(windowWidth, windowHeight, zoomSettings);
-    image(img,
-      zoomScreenBbox.left, zoomScreenBbox.top,
-      zoomScreenBbox.width, zoomScreenBbox.height);
-  }
+  let zoomScreenBbox = imgView.toScreenBbox(
+    windowWidth, windowHeight,
+    zoomSettings.zoom, zoomSettings.panX, zoomSettings.panY);
+  image(img,
+    zoomScreenBbox.left, zoomScreenBbox.top,
+    zoomScreenBbox.width, zoomScreenBbox.height);
 
   if (crosshairSettings.crosshairEnabled) {
     drawCrosshair({
@@ -332,4 +332,11 @@ function windowResized() {
         w = ceil(ww - mw) | 0, h = ceil(wh - mh) | 0;
   print(`Resize ${windowWidth}, ${windowHeight}`)
   resizeCanvas(windowWidth, windowHeight);
+}
+
+function mouseDragged() {
+  if (mouseButton === RIGHT) {
+    zoomSettings.panX -= movedX/img.width/zoomSettings.zoom;
+    zoomSettings.panY -= movedY/img.height/zoomSettings.zoom;
+  }
 }
