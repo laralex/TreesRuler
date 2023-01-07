@@ -1,9 +1,5 @@
-.guify-component-label ~ .guify-checkbox {
-   background: red;
-}
-
 .guify-button {
-   width: 100%;
+   width: 95%;
    height: 100%;
    margin-top: 2px;
    text-align: center;

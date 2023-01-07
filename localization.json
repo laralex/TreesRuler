@@ -60,12 +60,60 @@
       "RUS": "Прозрачность"
    },
    "guiWidth": {
-      "ENG": "Menu Width",
+      "ENG": "Menu width",
       "RUS": "Ширина"
    },
    "guiTheme": {
-      "ENG": "Menu Theme",
+      "ENG": "Menu theme",
       "RUS": "Цвет меню"
+   },
+   "guiGroup": {
+      "ENG": "MeasurementGroup",
+      "RUS": "ГруппаЗамеров"
+   },
+   "guiGroupDenotation": {
+      "ENG": "Denotation",
+      "RUS": "Обозначение"
+   },
+   "guiNewMeasure": {
+      "ENG": "New measurement",
+      "RUS": "Добавить замер"
+   },
+   "guiRemoveMeasure": {
+      "ENG": "Remove measurement",
+      "RUS": "Удалить замер"
+   },
+   "measuresFolder": {
+      "ENG": "Measurements",
+      "RUS": "Все замеры"
+   },
+   "guiGroupColor": {
+      "ENG": "Group color",
+      "RUS": "Цвет"
+   },
+   "measure": {
+      "ENG": "Measurement",
+      "RUS": "Замер"
+   },
+   "baseMeasure": {
+      "ENG": "UnitMeasurement",
+      "RUS": "БазисЗамер"
+   },
+   "beginPointX": {
+      "ENG": "Begin X",
+      "RUS": "Начало X"
+   },
+   "beginPointY": {
+      "ENG": "Begin Y",
+      "RUS": "Начало Y"
+   },
+   "endPointX": {
+      "ENG": "End X",
+      "RUS": "Конец X"
+   },
+   "endPointY": {
+      "ENG": "End Y",
+      "RUS": "Конец Y"
    },
    "openImageFiles": {
       "ENG": "Upload photo",
@@ -96,7 +144,7 @@
       "RUS": "Спрашивать о закрытии"
    },
    "loosingUnsavedDialog": {
-      "ENG": "The unsaved work will be lost. Continue?",
-      "RUS": "Несохраненные замеры будут удалены. Продолжить?"
+      "ENG": "The measurements for this photo will be lost. Continue?",
+      "RUS": "Все замеры для этого фото будут сброшены. Продолжить?"
    }
 }
