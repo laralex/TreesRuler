@@ -8,9 +8,9 @@ let generalSettings = new function() {
   this.crosshairEnabled = true;
   this.language = 'RUS';
   this.guiOpacity = 0.9;
-  this.guiWidth = 250;
+  this.guiWidth = 275;
   this.guiTheme = 'yorha';
-  this.guiAskUnsaved = true;
+  this.guiAskUnsaved = false;
 }();
 
 function openImageFiles(){
@@ -55,9 +55,9 @@ class ImageAABBView {
     let width = this.imageWidth*zoomSettings.zoom;
     let height = this.imageHeight*zoomSettings.zoom;
     return {
-      left: screenWidth/2-width/2 - zoomSettings.x*zoomSettings.zoom,
+      left: screenWidth/2-width/2 - zoomSettings.x*width,
       width: width,
-      top: screenHeight/2-height/2 - zoomSettings.y*zoomSettings.zoom,
+      top: screenHeight/2-height/2 - zoomSettings.y*height,
       height: height,
     }
   }
@@ -124,14 +124,13 @@ function setupGui(gui, panel) {
     },
 
     {
-      type: 'button',
+      type: 'file',
       label: getLocalized('openImageFiles'),
       object: this,
-      // property: 'file',
-      action: () => {
+      property: 'file',
+      onChange: (data) => {
         if (!generalSettings.guiAskUnsaved || confirm(getLocalized('loosingUnsavedDialog'))) {
-          openImageFiles();
-          gui.Toast('>>> Opened a file');
+          myLoadImage(data);
         } else {
           print('Cancel openning of file');
         }
@@ -165,7 +164,6 @@ function setupGui(gui, panel) {
       property: 'guiWidth',
       onChange: (data) => {
         let value = data+'px';
-        print(value);
         document.getElementsByClassName('guify-panel-container')[0].style.width = value;
       }
     },
@@ -182,8 +180,6 @@ function setupGui(gui, panel) {
     },
   ], { object: panel, folder: getLocalized('guiFolder') });
 
-  let roundWindowW2 = round(img.width*0.5);
-  let roundWindowH2 = round(img.height*0.5);
   gui.Register([
     {
       type: 'button',
@@ -193,13 +189,13 @@ function setupGui(gui, panel) {
     {
       type: 'range',
       label: getLocalized('zoomX'),
-      min: -roundWindowW2, max: roundWindowW2, step: 0.1,
+      min: -0.5, max: 0.5, step: 0.01,
       property: 'x'
     },
     {
       type: 'range',
       label: getLocalized('zoomY'),
-      min: -roundWindowH2, max: roundWindowH2, step: 0.1,
+      min: -0.5, max: 0.5, step: 0.01,
       property: 'y'
     },
     {
@@ -242,7 +238,6 @@ function setupGui(gui, panel) {
   let guifyBarButtons = document.getElementsByClassName('guify-bar-button');
   for (let element of guifyBarButtons) {
     if (element.ariaLabel === null || !element.ariaLabel.includes("screen")) {
-        print(element.ariaLabel);
         element.innerText = getLocalized('controls');
       }
   }
@@ -259,29 +254,31 @@ function resetZoom() {
 function mouseWheel(event) {
   var zoomDelta = -zoomSettings.zoomSensitivity*exp(zoomSettings.zoom)*event.delta;
   zoomDelta = constrain(zoomDelta, -zoomSettings.zoom/5, zoomSettings.zoom/5);
-  print(zoomDelta)
   zoomSettings.zoom += zoomDelta;
   zoomSettings.zoom = constrain(zoomSettings.zoom, zoomSettings.zoomMin, zoomSettings.zoomMax);
   return false;
 }
 
+function myLoadImage(uri) {
+  loadImage(uri, newImg => {
+    img = newImg;
+    imgView = new ImageAABBView(img.width, img.height);
+    imageInfo.imageSizeStr = `${img.width} x ${img.height}`;
+    resetZoom();
+    print('Loaded image', uri.slice(0, 100));
+  });
+  
+}
+
 function preload() {
-  const response = fetch('./localization.json');
-  response
-    .then((response) => response.json())
-    .then((data) => localization = data);
-  img = loadImage('assets/example_trees/000006.jpg');
+  localization = loadJSON('./localization.json');
 }
 
 function setup() {
-  print(img.width, img.height)
-  imageInfo.imageSizeStr = `${img.width} x ${img.height}`;
   createCanvas(windowWidth, windowHeight);
   windowResized();
-
   var gui = setupGui(gui, generalSettings);
-  imgView = new ImageAABBView(img.width, img.height);
-  resetZoom();
+  myLoadImage('./assets/example_trees/000006.jpg');
 }
 
 function drawCrosshair({x=0, y=0, beginOffset=0, endOffset=0, colorHexStr="#00000000"}) {
@@ -308,10 +305,12 @@ function drawZoomRect(bbox) {
 
 function draw() {
   clear();
-  let zoomScreenBbox = imgView.toScreenBbox(windowWidth, windowHeight, zoomSettings);
-  image(img,
-    zoomScreenBbox.left, zoomScreenBbox.top, 
-    zoomScreenBbox.width, zoomScreenBbox.height);
+  if (img !== undefined) {
+    let zoomScreenBbox = imgView.toScreenBbox(windowWidth, windowHeight, zoomSettings);
+    image(img,
+      zoomScreenBbox.left, zoomScreenBbox.top,
+      zoomScreenBbox.width, zoomScreenBbox.height);
+  }
 
   if (crosshairSettings.crosshairEnabled) {
     drawCrosshair({
