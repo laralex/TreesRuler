@@ -1,8 +1,8 @@
-.dg .c input[type=text], .dg .c select {
-   margin-top: 1px;
+.guify-component-label ~ .guify-checkbox {
+   background: red;
 }
 
-.dg .cr.function .property-name {
+.guify-button {
    width: 100%;
    height: 100%;
    margin-top: 2px;
@@ -18,10 +18,9 @@
    background: -webkit-gradient(linear, left top, left bottom, color-stop(0,#F2F2F2), color-stop(0.5,#EBEBEB),color-stop(0.51,#DDDDDD),color-stop(1,#CFCFCF));
    background: linear-gradient(top, #F2F2F2 0%, #EBEBEB 50%, #DDDDDD 51%, #CFCFCF 100%);
    font: normal 12px sans-serif;
-   color: #555;
 } 
 
-.dg .cr.function .property-name:hover {
+.guify-button:hover {
    border: 1px solid #ECF7FD;
    -moz-box-shadow: 0 0 0 1px #3C7FB1;
    -webkit-box-shadow: 0 0 0 1px #3C7FB1;
@@ -31,7 +30,7 @@
    background: linear-gradient(top, #EAF6FD 0%, #D9F0FC 50%, #BEE6FD 51%, #A7D9F5 100%);
 }
 
-.dg .cr.function .property-name:active {
+.guify-button:active {
    border: 1px solid #73A7C4;
    border-bottom: 0;
    -moz-box-shadow: 0 0 0 1px #2C628B;
@@ -40,3 +39,7 @@
    background: -moz-linear-gradient(top, #E5F4FC 0%, #C4E5F6 50%, #98D1EF 51%, #68B3DB 100%);
    background: -webkit-gradient(linear, left top, left bottom, color-stop(0,#E5F4FC), color-stop(0.5,#C4E5F6),color-stop(0.51,#98D1EF),color-stop(1,#68B3DB));
 } 
+
+.guify-button:focus, .guify-button:active, .guify-button:hover {
+   color : #000 !important;
+}

@@ -1,21 +1,36 @@
+'use strict';
+
 let img;
 let localization;
-var started = false;
 var imgView;
-var zoom = 1;
-var zoomSensitivity = 0.0005;
 
 let generalSettings = new function() {
   this.crosshairEnabled = true;
-  this.language = 'ENG';
-  this.openImageFiles = function(){ document.getElementById('file-input').click() };
+  this.language = 'RUS';
+  this.guiOpacity = 0.9;
+  this.guiWidth = 250;
+  this.guiTheme = 'yorha';
+  this.guiAskUnsaved = true;
 }();
+
+function openImageFiles(){
+   document.getElementById('file-input').click()
+}
 
 let crosshairSettings = new function() {
   this.crosshairEnabled = true;
   this.crosshairLinesEnd = 10;
   this.crosshairRadius = 10;
   this.crosshairColor = '#ff0000';
+}();
+
+let zoomSettings = new function() {
+  this.x = 0;
+  this.y = 0;
+  this.zoom = 1;
+  this.zoomMin = 0.01;
+  this.zoomMax = 100;
+  this.zoomSensitivity = 0.0005;
 }();
 
 let imageInfo = new function() {
@@ -34,64 +49,17 @@ class ImageAABBView {
   constructor(imageWidth, imageHeight) {
     this.imageWidth = imageWidth;
     this.imageHeight = imageHeight;
-    this.seenX = 0;
-    this.seenY = 0;
-    this.seenWidth = imageWidth;
-    this.seenHeight = imageHeight;
   }
 
-  // translate(x, y) {
-  //   this.seenLeft += x;
-  //   this.seenRight += x;
-  //   this.seenTop += y;
-  //   this.seenBottom += y;
-  // }
-
-  toScreenBbox(screenWidth, screenHeight) {
+  toScreenBbox(screenWidth, screenHeight, zoomSettings) {
+    let width = this.imageWidth*zoomSettings.zoom;
+    let height = this.imageHeight*zoomSettings.zoom;
     return {
-      left: screenWidth/2-this.imageWidth/2-this.seenX,
-      width: this.imageWidth,
-      top: screenHeight/2-this.imageHeight/2-this.seenY,
-      height: this.imageHeight,
+      left: screenWidth/2-width/2 - zoomSettings.x*zoomSettings.zoom,
+      width: width,
+      top: screenHeight/2-height/2 - zoomSettings.y*zoomSettings.zoom,
+      height: height,
     }
-    // return {
-    //   left: max(0, screenWidth/2-this.seenLeft),
-    //   right: min(screenWidth, screenWidth/2+this.seenRight),
-    //   top: max(0, screenHeight/2-this.seenTop),
-    //   bottom: min(screenHeight, screenHeight/2+this.seenBottom),
-    // }
-  }
-
-  zoomTo(screenX, screenY, zoomDelta, screenWidth, screenHeight) {
-    {
-      let screenAdjustX = screenX / screenWidth;
-      let currWidth = float(this.seenWidth);
-      this.seenWidth -= currWidth*zoomDelta*(2*screenAdjustX - 1);
-      this.seenX += currWidth*screenAdjustX*zoomDelta;
-    }
-    {
-      let screenAdjustY = screenY / screenHeight;
-      let currHeight = float(this.seenHeight);
-      this.seenHeight -= currHeight*zoomDelta*(2*screenAdjustY - 1);
-      this.seenY += currHeight*screenAdjustY*zoomDelta;
-    }
-
-    // if (this.seenX < 0) {
-    //   this.seenWidth += Math.abs(this.seenX);
-    // }
-    // if (this.seenX > screenWidth) {
-    //   this.seenWidth -= Math.abs(screenWidth-this.seenX);
-    // }
-    // if (this.seenY < 0) {
-    //   this.seenHeight += Math.abs(this.seenY);
-    // }
-    // if (this.seenY > screenHeight) {
-    //   this.seenHeight -= Math.abs(screenHeight-this.seenY);
-    // }
-  }
-
-  toString() {
-    return `X=${this.seenX} W=${this.seenWidth} Y=${this.seenY} H=${this.seenHeight}`;
   }
 }
 
@@ -107,14 +75,14 @@ function setupGui(gui, panel) {
 
   gui = new guify({
     title:  getLocalized('title'),
-    theme: 'light', // dark, light, yorha, or theme object
+    theme: panel.guiTheme, // dark, light, yorha, or theme object
     align: 'right', // left, right
-    width: 500,
-    barMode: 'offset', // none, overlay, above, offset
+    width: panel.guiWidth,
+    barMode: 'above', // none, overlay, above, offset
     panelMode: 'inner',
-    panelOverflowBehavior: 'scroll',
-    pollRateMs: 500,
-    opacity: 1.0,
+    panelOverflowBehavior: 'overflow',
+    pollRateMS: 750,
+    opacity: panel.guiOpacity,
     open: true
   });
   document.title = getLocalized('title');
@@ -132,8 +100,27 @@ function setupGui(gui, panel) {
 
     {
       type: 'folder',
+      label: getLocalized('guiFolder'),
+      open: false
+    },
+
+    {
+      type: 'folder',
       label: getLocalized('crosshairFolder'),
       open: false
+    },
+
+    {
+      type: 'folder',
+      label: getLocalized('zoomFolder'),
+      open: true
+    },
+
+    {
+      type: 'checkbox',
+      label: getLocalized('guiAskUnsaved'),
+      property: 'guiAskUnsaved',
+      object: panel,
     },
 
     {
@@ -142,8 +129,12 @@ function setupGui(gui, panel) {
       object: this,
       // property: 'file',
       action: () => {
-        gui.Toast('>>> Opened a file');
-        generalSettings.openImageFiles();
+        if (!generalSettings.guiAskUnsaved || confirm(getLocalized('loosingUnsavedDialog'))) {
+          openImageFiles();
+          gui.Toast('>>> Opened a file');
+        } else {
+          print('Cancel openning of file');
+        }
       }
     },
     {
@@ -153,6 +144,72 @@ function setupGui(gui, panel) {
       listenMode: 'change',
     }
   ]);
+
+  gui.Register([
+    {
+      type: 'range',
+      label: getLocalized('guiOpacity'),
+      min: 0.1, max: 1.0, step: 0.05,
+      object: panel,
+      property: 'guiOpacity',
+      onChange: (data) => {
+        document.getElementsByClassName('guify-panel-container')[0].style.opacity = data;
+      }
+    },
+
+    {
+      type: 'select',
+      label: getLocalized('guiWidth'),
+      options: [275, 350, 600],
+      object: panel,
+      property: 'guiWidth',
+      onChange: (data) => {
+        let value = data+'px';
+        print(value);
+        document.getElementsByClassName('guify-panel-container')[0].style.width = value;
+      }
+    },
+
+    {
+      type: 'select',
+      label: getLocalized('guiTheme'),
+      options: ['yorha', 'dark', 'light'],
+      object: panel,
+      property: 'guiTheme',
+      onChange: (data) => {
+        setupGui(gui, panel);
+      }
+    },
+  ], { object: panel, folder: getLocalized('guiFolder') });
+
+  let roundWindowW2 = round(img.width*0.5);
+  let roundWindowH2 = round(img.height*0.5);
+  gui.Register([
+    {
+      type: 'button',
+      label: getLocalized('zoomReset'),
+      action: resetZoom
+    },
+    {
+      type: 'range',
+      label: getLocalized('zoomX'),
+      min: -roundWindowW2, max: roundWindowW2, step: 0.1,
+      property: 'x'
+    },
+    {
+      type: 'range',
+      label: getLocalized('zoomY'),
+      min: -roundWindowH2, max: roundWindowH2, step: 0.1,
+      property: 'y'
+    },
+    {
+      type: 'range',
+      label: getLocalized('zoomLevel'),
+      scale: 'log',
+      min: zoomSettings.zoomMin, max: zoomSettings.zoomMax,
+      property: 'zoom'
+    },
+  ], { object: zoomSettings, folder: getLocalized('zoomFolder') });
 
   gui.Register([
     {
@@ -181,6 +238,7 @@ function setupGui(gui, panel) {
       property: 'crosshairColor'
     },
   ], { object: crosshairSettings, folder: getLocalized('crosshairFolder') });
+
   let guifyBarButtons = document.getElementsByClassName('guify-bar-button');
   for (let element of guifyBarButtons) {
     if (element.ariaLabel === null || !element.ariaLabel.includes("screen")) {
@@ -192,11 +250,18 @@ function setupGui(gui, panel) {
   return gui;
 }
 
+function resetZoom() {
+  zoomSettings.x = 0;
+  zoomSettings.y = 0;
+  zoomSettings.zoom = min(windowHeight / img.height, windowWidth / img.width);
+}
+
 function mouseWheel(event) {
-  zoom += zoomSensitivity*event.delta; // * exp(zoom) * event.delta;
-  // zoom = constrain(zoom, zoomMin, zoomMax);
-  imgView.zoomTo(mouseX, mouseY, -zoomSensitivity*event.delta, windowWidth, windowHeight);
-  print(zoom, imgView.toString())
+  var zoomDelta = -zoomSettings.zoomSensitivity*exp(zoomSettings.zoom)*event.delta;
+  zoomDelta = constrain(zoomDelta, -zoomSettings.zoom/5, zoomSettings.zoom/5);
+  print(zoomDelta)
+  zoomSettings.zoom += zoomDelta;
+  zoomSettings.zoom = constrain(zoomSettings.zoom, zoomSettings.zoomMin, zoomSettings.zoomMax);
   return false;
 }
 
@@ -205,7 +270,7 @@ function preload() {
   response
     .then((response) => response.json())
     .then((data) => localization = data);
-  img = loadImage('assets/example_trees/000001.jpg');
+  img = loadImage('assets/example_trees/000006.jpg');
 }
 
 function setup() {
@@ -216,9 +281,10 @@ function setup() {
 
   var gui = setupGui(gui, generalSettings);
   imgView = new ImageAABBView(img.width, img.height);
+  resetZoom();
 }
 
-function drawCrosshair(x, y, beginOffset, endOffset, colorHexStr) {
+function drawCrosshair({x=0, y=0, beginOffset=0, endOffset=0, colorHexStr="#00000000"}) {
   push();
   noFill();
   stroke(colorHexStr);
@@ -232,34 +298,28 @@ function drawCrosshair(x, y, beginOffset, endOffset, colorHexStr) {
   pop();
 }
 
-function drawZoomRect() {
+function drawZoomRect(bbox) {
   push();
   stroke(255, 0, 0);
   noFill();
-  let zoomScreenBbox = imgView.toScreenBbox(windowWidth, windowHeight);
-  // print(zoomScreenBbox);
-  rect(zoomScreenBbox.left, zoomScreenBbox.top, zoomScreenBbox.width, zoomScreenBbox.height);
+  rect(bbox.left, bbox.top, bbox.width, bbox.height);
   pop();
 }
 
 function draw() {
   clear();
-  let zoomScreenBbox = imgView.toScreenBbox(windowWidth, windowHeight);
+  let zoomScreenBbox = imgView.toScreenBbox(windowWidth, windowHeight, zoomSettings);
   image(img,
-    zoomScreenBbox.left, zoomScreenBbox.top, zoomScreenBbox.width, zoomScreenBbox.height
-    );
-    // imgView.seenX, imgView.seenY,
-    // // img.width, img.height,
-    // imgView.seenWidth, imgView.seenHeight);
-
-  drawZoomRect();
+    zoomScreenBbox.left, zoomScreenBbox.top, 
+    zoomScreenBbox.width, zoomScreenBbox.height);
 
   if (crosshairSettings.crosshairEnabled) {
-    drawCrosshair(mouseX, mouseY,
-      beginOffset=crosshairSettings.crosshairRadius,
-      endOffset=crosshairSettings.crosshairLinesEnd,
-      colorHexStr=crosshairSettings.crosshairColor,
-      );
+    drawCrosshair({
+      x: mouseX, y: mouseY,
+      beginOffset: crosshairSettings.crosshairRadius,
+      endOffset: crosshairSettings.crosshairLinesEnd,
+      colorHexStr: crosshairSettings.crosshairColor,
+    });
   }
 
 }
@@ -271,7 +331,6 @@ function windowResized() {
         ww = float(css.width)  || windowWidth,
         wh = float(css.height) || windowHeight,
         w = ceil(ww - mw) | 0, h = ceil(wh - mh) | 0;
-        // resizeCanvas(w, h);
   print(`Resize ${windowWidth}, ${windowHeight}`)
   resizeCanvas(windowWidth, windowHeight);
 }

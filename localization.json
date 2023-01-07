@@ -12,47 +12,91 @@
       "RUS": "Русский"
    },
    "crosshairFolder": {
-      "ENG": "Crosshair Settings",
+      "ENG": "Crosshair settings",
       "RUS": "Настройки курсора"
    },
    "crosshairEnabled": {
       "ENG": "Crosshair Enabled",
-      "RUS": "Показывать курсор"
+      "RUS": "Вкл. курсор"
    },
    "crosshairRadius": {
       "ENG": "Crosshair Radius",
-      "RUS": "Радиус курсора"
+      "RUS": "Радиус"
    },
    "crosshairLinesEnd": {
       "ENG": "Crosshair Lines",
-      "RUS": "Черты курсора"
+      "RUS": "Линии"
    },
    "crosshairColor": {
       "ENG": "Crosshair Color",
-      "RUS": "Цвет курсора"
+      "RUS": "Цвет"
+   },
+   "zoomX": {
+      "ENG": "Translation X",
+      "RUS": "Сместить X"
+   },
+   "zoomY": {
+      "ENG": "Translation Y",
+      "RUS": "Сместить Y"
+   },
+   "zoomLevel": {
+      "ENG": "Zoom level",
+      "RUS": "Увеличить"
+   },
+   "zoomReset": {
+      "ENG": "Zoom reset",
+      "RUS": "Сбросить"
+   },
+   "zoomFolder": {
+      "ENG": "Zoom settings",
+      "RUS": "Настройки приближения"
+   },
+   "guiFolder": {
+      "ENG": "GUI settings",
+      "RUS": "Настройки меню"
+   },
+   "guiOpacity": {
+      "ENG": "Opacity",
+      "RUS": "Прозрачность"
+   },
+   "guiWidth": {
+      "ENG": "Menu Width",
+      "RUS": "Ширина"
+   },
+   "guiTheme": {
+      "ENG": "Menu Theme",
+      "RUS": "Цвет меню"
    },
    "openImageFiles": {
-      "ENG": "Upload trees images",
-      "RUS": "Загрузить фотографии деревьев"
+      "ENG": "Upload photo",
+      "RUS": "Загрузить фото"
    },
    "closeControls": {
       "ENG": "Close Controls",
-      "RUS": "Свернуть настройки"
+      "RUS": "Свернуть меню"
    },
    "openControls": {
       "ENG": "Open Controls",
-      "RUS": "Открыть настройки"
+      "RUS": "Открыть меню"
    },
    "controls": {
-      "ENG": "Controls",
-      "RUS": "Настройки"
+      "ENG": "Hide Controls",
+      "RUS": "Скрыть меню"
    },
    "imageSize": {
-      "ENG": "Image size (pixels)",
-      "RUS": "Размер фото (пиксели)"
+      "ENG": "Image size",
+      "RUS": "Размер фото"
    },
    "title": {
       "ENG": "Trees Ruler",
       "RUS": "Метрия деревьев"
+   },
+   "guiAskUnsaved": {
+      "ENG": "Confirmation pop-up",
+      "RUS": "Спрашивать о закрытии"
+   },
+   "loosingUnsavedDialog": {
+      "ENG": "The unsaved work will be lost. Continue?",
+      "RUS": "Несохраненные замеры будут удалены. Продолжить?"
    }
 }
