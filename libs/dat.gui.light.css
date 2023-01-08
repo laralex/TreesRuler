@@ -1,3 +1,7 @@
+:root {
+   --size-label-width: 44% !important;
+}
+
 .guify-button {
    width: 95%;
    height: 100%;

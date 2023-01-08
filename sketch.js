@@ -13,6 +13,7 @@ let generalSettings = new function() {
   this.guiWidth = 300;
   this.guiTheme = 'yorha';
   this.guiAskUnsaved = false;
+  this.nextGroupName = null;
 }();
 
 function openImageFiles(){
@@ -21,9 +22,10 @@ function openImageFiles(){
 
 let crosshairSettings = new function() {
   this.crosshairEnabled = true;
-  this.crosshairLinesEnd = 10;
-  this.crosshairRadius = 10;
-  this.crosshairColor = '#ff0000';
+  this.crosshairLinesEnd = 15;
+  this.crosshairRadius = 0;
+  this.crosshairColor = '#ffff00';
+  this.invertColor = true;
 }();
 
 let zoomSettings = new function() {
@@ -66,80 +68,173 @@ class ImageAABBView {
 }
 
 class MeasureGroupGuiComposer {
+  static groupsDefaults = [
+    { color: '#ff5e5e', denotation: 'a' },
+    { color: '#fda703', denotation: 'b' },
+    { color: '#0cff03', denotation: 'c' },
+    { color: '#03b4ff', denotation: 'd' },
+    { color: '#ff5ce4', denotation: 'e' },
+    { color: '#ff0000', denotation: 'A' },
+    { color: '#00ffff', denotation: 'B' },
+    { color: '#0000ff', denotation: 'C' },
+    { color: '#aaaaaa', denotation: 'D' },
+    { color: '#ffffff', denotation: 'E' },
+  ];
+
   constructor(imageWidth, imageHeight) {
     this.groups = [];
     this.imageWidth = imageWidth;
     this.imageHeight = imageHeight;
+    this.nextDefaultIndex = 0;
+    this.viewGuiObjects = {};
+    this.viewMeasureObjects = null;
+    print(getLocalized('defaultGroupName'))
+    generalSettings.nextGroupName = getLocalized('defaultGroupName')+0;
   }
 
-  _newMeasure({gui=null, parentFolder=null, newFolderName=null, boundData=null, open=false, removable=false}) {
-    let definitions = [
-      {
-        type: 'folder',
-        label: newFolderName,
-        folder: parentFolder,
-        open: open
+  viewMeasurement(guiObjects, measurementBoundData) {
+    print('Selected', measurementBoundData);
+    for(const [key, guiObj] of Object.entries(this.viewGuiObjects)) {
+      guiObj.bounding.object = measurementBoundData;
+      guiObj.bounding.property = key;
+    }
+  }
+
+  addViewGui(gui, viewFolder) {
+    const definitions = {
+      label: {
+        type: 'display',
+        label: '',
+        initial: getLocalized('guiSelectedMeasure'),
       },
-      {
+      x0 : {
         type: 'range',
         label: getLocalized('beginPointX'),
         min: 0, max: this.imageWidth, step: 1,
-        property: 'x0',
-        object: boundData, folder: newFolderName
       },
-      {
+      y0 : {
         type: 'range',
         label: getLocalized('beginPointY'),
         min: 0, max: this.imageHeight, step: 1,
-        property: 'y0',
-        object: boundData, folder: newFolderName
       },
-      {
+      x1 : {
         type: 'range',
         label: getLocalized('endPointX'),
         min: 0, max: this.imageWidth, step: 1,
-        property: 'x1',
-        object: boundData, folder: newFolderName
       },
-      {
+      y1 : {
         type: 'range',
         label: getLocalized('endPointY'),
         min: 0, max: this.imageHeight, step: 1,
-        property: 'y1',
-        object: boundData, folder: newFolderName
+      },
+      relativeLength : {
+        type: 'display',
+        label: getLocalized('guiRelativeLength'),
+      },
+      absoluteLength : {
+        type: 'display',
+        label: getLocalized('guiAbsoluteLength'),
+      },
+      removeButton : {
+            type: 'button',
+            label: getLocalized('guiRemoveMeasure'),
+            action: () => {
+              if (this.viewMeasureObjects === null) { return; }
+              this.viewMeasureObjects.forEach(obj => tryCatch(
+                ()=>gui.Remove(obj),
+                (e)=>{}
+              ))
+            },
       }
+    };
+    for (const [key, definition] of Object.entries(definitions)) {
+      let guiObj = gui.Register(definition, { folder: viewFolder });
+      if (key !== 'label' || key !== 'removeButton') {
+        // guiObj.SetEnabled(false)
+        this.viewGuiObjects.key = guiObj;
+      }
+    }
+  }
+
+  _newMeasure({gui=null, parentFolder=null, newFolderName=null, boundData=null}) {
+    let definitions = [
+      {
+        type: 'button',
+        label: newFolderName,
+        folder: parentFolder,
+        action: () => {
+          this.viewMeasurement(objects, boundData);
+        }
+      },
     ];
     let objects = [];
     for (let definition of definitions) {
       objects.push(gui.Register(definition));
     }
-    print(boundData, newFolderName);
-    if (removable) {
-      objects.push(gui.Register({
-        type: 'button',
-        label: getLocalized('guiRemoveMeasure'),
-        folder: newFolderName,
-        action: () => { objects.forEach(obj => gui.Remove(obj)) },
-      }));
-    }
     return objects;
   }
+
+  // _setGroupDenotation(groupFolder, newDenotation) {
+  //   const group = this.groups.find((group) => group.groupFolder == groupFolder);
+  //   for (element of group.guiObjects) {
+  //     if (element.classList.contains('baseMeasure')) {
+        
+  //     } else if (element.classList.contains('measure')) {
+
+  //     }
+  //   }
+  // }
+  _addFloatNoSlider(gui, definition) {
+    let obj = gui.Register(definition);
+    obj.container.querySelectorAll('.guify-value-input').forEach(
+      el => { el.style.width = "56%"; }
+    );
+    return obj;
+  }
+
   newGroup(gui, parentFolder) {
-    let uniqueSpaces = '@'.repeat(this.groups.length);
-    let groupFolder = `${getLocalized('guiGroup')}${this.groups.length}`;
+    let uniqueSpaces = ' '.repeat(this.groups.length);
+    let groupFolder = generalSettings.nextGroupName;
+    generalSettings.nextGroupName = generalSettings.nextGroupName.match(/(.*?)(\d*)$/)[1] + (this.groups.length+1);
     let groupFolderObj = gui.Register({
       type: 'folder',
       label: groupFolder,
       folder: parentFolder,
-      open: true
+      open: false
     });
     let guiObjects = [groupFolderObj];
+    let defaults;
+    if (this.nextDefaultIndex < this.constructor.groupsDefaults.length) {
+      defaults = this.constructor.groupsDefaults[this.nextDefaultIndex];
+      ++this.nextDefaultIndex;
+    } else {
+      const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16);
+      const denotation = String.fromCharCode('A'.charCodeAt(0) + this.groups.length);
+      defaults = { color: randomColor, denotation: denotation }
+    }
     let groupBoundData = {
-      color: "#00FF00",
-      denotation: 'a',
-      baseMeasure: {x0: 0, y0: 0, x1: 0, y1: 0},
-      measures: [{x0: 0, y0: 0, x1: 0, y1: 0}]
+      ...defaults,
+      baseMeasure: {
+        x0: Math.random()*1000,
+        y0: Math.random()*1000,
+        x1: Math.random()*1000,
+        y1: Math.random()*1000,
+        guiObjects: null},
+      baseAbsoluteLength: 1.0,
+      measures: []
     };
+    guiObjects.push(gui.Register({
+      type: 'button',
+      label: getLocalized('guiRemoveGroup'),
+      folder: groupFolder,
+      action: () => {
+        if (!generalSettings.guiAskUnsaved || this.groups.length == 1 || confirm(getLocalized('removeGroupDialog') + ' ' + groupFolder)) {
+          this.removeGroup(gui, groupFolder);
+        } else {
+          print('Cancel removing of group');
+        }
+      }
+    }));
     guiObjects.push(gui.Register({
         type: 'color',
         label: getLocalized('guiGroupColor'),
@@ -151,33 +246,68 @@ class MeasureGroupGuiComposer {
         type: 'text',
         label: getLocalized('guiGroupDenotation'),
         property: 'denotation',
-        object: groupBoundData, folder: groupFolder
+        object: groupBoundData, folder: groupFolder,
     }));
+
+    guiObjects.push(this._addFloatNoSlider(gui, {
+      type: 'range',
+      listenTo: 'change',
+      label: getLocalized('guiBaseAbsoluteValue'),
+      min: 1e-3, max: 1e6, step:1e-6,
+      property: 'baseAbsoluteLength',
+      object: groupBoundData, folder: groupFolder,
+      onChange: (data) => {
+        print(data);
+      }
+    }));
+
     guiObjects.push(gui.Register({
       type: 'button',
       label: getLocalized('guiNewMeasure'),
-      folder: groupFolder
+      folder: groupFolder,
+      action: () => {
+        let index = groupBoundData.measures.length;
+        groupBoundData.measures.push({x0: Math.random()*1000, y0: Math.random()*1000, x1: 0, y1: 0, guiObjects: null});
+        let measureGuiObjects = this._newMeasure({
+          gui: gui, parentFolder: groupFolder,
+          newFolderName: `${getLocalized('measure')} ${index+1}${uniqueSpaces}`,
+          boundData: groupBoundData.measures[index],
+        });
+        groupBoundData.measures.guiObjects = measureGuiObjects;
+        guiObjects.push(...measureGuiObjects);
+      }
     }));
-    guiObjects.push(...this._newMeasure({
+    const baseGuiObjects = this._newMeasure({
       gui: gui, parentFolder: groupFolder,
-      newFolderName: `${getLocalized('baseMeasure')}${uniqueSpaces}`,
+      newFolderName: `${getLocalized('baseMeasurePrefix')} 0 ${getLocalized('baseMeasureSuffix')}${uniqueSpaces}`,
       boundData: groupBoundData.baseMeasure,
-      open: false,
-      removable: false
-    }));
-    guiObjects.push(...this._newMeasure({
-      gui: gui, parentFolder: groupFolder, 
-      newFolderName: `${getLocalized('measure')}-${0}${uniqueSpaces}`,
-      boundData: groupBoundData.measures[0], 
-      open: false,
-      removable: true
-    }));
-    this.groups.push({guiObjects: guiObjects, data: groupBoundData});
+    });
+    guiObjects.push(...baseGuiObjects);
+    groupBoundData.baseMeasure.guiObjects = baseGuiObjects;
+    this.groups.push({guiObjects: guiObjects, data: groupBoundData, groupFolder: groupFolder});
   }
 
-  removeAllGroups(gui) {
-    this.groups.forEach(group => group.guiObjects.forEach(obj => gui.Remove(obj)));
+  _removeGuiObjects(gui, guiObjects) {
+    guiObjects.forEach(
+      obj => tryCatch(
+        () => gui.Remove(obj),
+        (e) => {}
+      )
+    )
   }
+  removeGroup(gui, groupFolder) {
+    let groupIndex = this.groups.findIndex(group => group.groupFolder == groupFolder);
+    this._removeGuiObjects(gui, this.groups[groupIndex].guiObjects);
+    this.groups.splice(groupIndex, 1)
+  }
+  removeAllGroups(gui) {
+    this.groups.forEach(group => this.removeGroup(gui, group.groupFolder));
+  }
+}
+
+function tryCatch(func, failFunc) {
+  try { return func() }
+  catch(e) { return failFunc(e) }
 }
 
 function setupGui(gui, panel) {
@@ -197,7 +327,7 @@ function setupGui(gui, panel) {
     barMode: 'above', // none, overlay, above, offset
     panelMode: 'inner',
     panelOverflowBehavior: 'scroll',
-    pollRateMS: 300,
+    pollRateMS: 200,
     opacity: panel.guiOpacity,
     open: true
   });
@@ -213,7 +343,33 @@ function setupGui(gui, panel) {
         setupGui(gui, panel);
       },
     },
+    {
+      type: 'checkbox',
+      label: getLocalized('guiAskUnsaved'),
+      property: 'guiAskUnsaved',
+      object: panel,
+    },
 
+    {
+      type: 'file',
+      label: getLocalized('openImageFiles'),
+      object: this,
+      onChange: (data) => {
+        if (!generalSettings.guiAskUnsaved || confirm(getLocalized('loosingUnsavedDialog'))) {
+          myLoadImage(data);
+        } else {
+          print('Cancel openning of file');
+        }
+      }
+    },
+    {
+      type: 'display',
+      label: getLocalized('imageSize'),
+      object: imageInfo, property: 'imageSizeStr',
+      listenMode: 'change',
+    }
+  ]);
+  gui.Register([
     {
       type: 'folder',
       label: getLocalized('guiFolder'),
@@ -237,32 +393,6 @@ function setupGui(gui, panel) {
       label: getLocalized('measuresFolder'),
       open: true
     },
-
-    {
-      type: 'checkbox',
-      label: getLocalized('guiAskUnsaved'),
-      property: 'guiAskUnsaved',
-      object: panel,
-    },
-
-    {
-      type: 'file',
-      label: getLocalized('openImageFiles'),
-      object: this,
-      onChange: (data) => {
-        if (!generalSettings.guiAskUnsaved || confirm(getLocalized('loosingUnsavedDialog'))) {
-          myLoadImage(data);
-        } else {
-          print('Cancel openning of file');
-        }
-      }
-    },
-    {
-      type: 'text',
-      label: getLocalized('imageSize'),
-      object: imageInfo, property: 'imageSizeStr',
-      listenMode: 'change',
-    }
   ]);
 
   gui.Register([
@@ -347,14 +477,39 @@ function setupGui(gui, panel) {
       min: 1, max: 50, step: 1,
       property: 'crosshairLinesEnd'
     },
-
     {
       type: 'color',
       label: getLocalized('crosshairColor'),
       format: 'hex',
       property: 'crosshairColor'
     },
+    {
+      type: 'checkbox',
+      label: getLocalized('crosshairInvertColor'),
+      property: 'invertColor',
+    },
   ], { object: crosshairSettings, folder: getLocalized('crosshairFolder') });
+
+  gui.Register({
+    type: 'text',
+    listenMode: 'change',
+    label: getLocalized('guiNewGroupName'),
+    folder: getLocalized('measuresFolder'),
+    property: 'nextGroupName',
+    object: generalSettings,
+  });
+
+  gui.Register({
+    type: 'button',
+    label: getLocalized('guiNewGroup'),
+    folder: getLocalized('measuresFolder'),
+    action: () => {
+      guiMeasureComposer.newGroup(gui, getLocalized('measuresFolder'));
+    }
+  });
+
+  guiMeasureComposer = new MeasureGroupGuiComposer(1, 1);
+  guiMeasureComposer.addViewGui(gui, null);
 
   let guifyBarButtons = document.getElementsByClassName('guify-bar-button');
   for (let element of guifyBarButtons) {
@@ -390,11 +545,6 @@ function myLoadImage(uri) {
       guiMeasureComposer.removeAllGroups(gui);
     }
     guiMeasureComposer = new MeasureGroupGuiComposer(img.width, img.height);
-    // if (uri.includes('000006')) {
-      guiMeasureComposer.newGroup(gui, getLocalized('measuresFolder'));
-      guiMeasureComposer.newGroup(gui, getLocalized('measuresFolder'));
-    // }
-
     print('Loaded image', uri.slice(0, 100));
   });
   
@@ -411,17 +561,23 @@ function setup() {
   myLoadImage('./assets/example_trees/000006.jpg');
 }
 
-function drawCrosshair({x=0, y=0, beginOffset=0, endOffset=0, colorHexStr="#00000000"}) {
+function drawCrosshair({x=0, y=0, beginOffset=0, endOffset=0, colorHexStr="#00000000", blendingMode=BLEND}) {
   push();
+  blendMode(blendingMode);
   noFill();
   stroke(colorHexStr);
   strokeWeight(3);
   strokeCap(SQUARE);
-  line(x + beginOffset, y, x + endOffset, y);
-  line(x - beginOffset, y, x - endOffset, y);
-  line(x, y + beginOffset, x, y + endOffset);
-  line(x, y - beginOffset, x, y - endOffset);
-  circle(x, y, beginOffset*2);
+  if (beginOffset == 0) {
+    line(x - endOffset, y - endOffset, x + endOffset, y + endOffset);
+    line(x + endOffset, y - endOffset, x - endOffset, y + endOffset);
+  } else {
+    line(x + beginOffset, y + beginOffset, x + endOffset, y + endOffset);
+    line(x - beginOffset, y + beginOffset, x - endOffset, y + endOffset);
+    line(x - beginOffset, y - beginOffset, x - endOffset, y - endOffset);
+    line(x + beginOffset, y - beginOffset, x + endOffset, y - endOffset);
+    circle(x, y, beginOffset*2);
+  }
   pop();
 }
 
@@ -430,6 +586,27 @@ function drawZoomRect(bbox) {
   stroke(255, 0, 0);
   noFill();
   rect(bbox.left, bbox.top, bbox.width, bbox.height);
+  pop();
+}
+
+function drawMeasurements(panX, panY, zoom) {
+  push();
+  strokeWeight(4*zoom);
+  guiMeasureComposer.groups.forEach(group => {
+    var measure = group.data.baseMeasure;
+    stroke(group.data.color);
+    line(measure.x0*zoom + panX,
+      measure.y0*zoom + panY,
+      measure.x1*zoom + panX,
+      measure.y1*zoom + panY);
+    // stroke(group.data.color);
+    for (var measure of group.data.measures) {
+      line(measure.x0*zoom + panX,
+        measure.y0*zoom + panY,
+        measure.x1*zoom + panX,
+        measure.y1*zoom + panY);
+    }
+  });
   pop();
 }
 
@@ -442,6 +619,9 @@ function draw() {
     image(img,
       zoomScreenBbox.left, zoomScreenBbox.top,
       zoomScreenBbox.width, zoomScreenBbox.height);
+    // const panX = zoomSettings.panX * img.width / zoomSettings.zoom;
+    // const panY = zoomSettings.panY * img.height / zoomSettings.zoom;p
+    drawMeasurements(zoomScreenBbox.left, zoomScreenBbox.top, zoomSettings.zoom);
   }
 
   if (crosshairSettings.crosshairEnabled) {
@@ -450,7 +630,16 @@ function draw() {
       beginOffset: crosshairSettings.crosshairRadius,
       endOffset: crosshairSettings.crosshairLinesEnd,
       colorHexStr: crosshairSettings.crosshairColor,
+      blendingMode: crosshairSettings.invertColor ? DIFFERENCE : BLEND,
     });
+    drawCrosshair({
+      x: mouseX, y: mouseY,
+      beginOffset: crosshairSettings.crosshairRadius,
+      endOffset: crosshairSettings.crosshairLinesEnd,
+      colorHexStr: "#eeeeee",
+      blendingMode: crosshairSettings.invertColor ? OVERLAY : BLEND,
+    });
+    blendMode(BLEND);
   }
 }
 

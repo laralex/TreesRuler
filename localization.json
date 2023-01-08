@@ -20,16 +20,20 @@
       "RUS": "Вкл. курсор"
    },
    "crosshairRadius": {
-      "ENG": "Crosshair Radius",
+      "ENG": "Radius",
       "RUS": "Радиус"
    },
    "crosshairLinesEnd": {
-      "ENG": "Crosshair Lines",
+      "ENG": "Lines",
       "RUS": "Линии"
    },
    "crosshairColor": {
-      "ENG": "Crosshair Color",
+      "ENG": "Color",
       "RUS": "Цвет"
+   },
+   "crosshairInvertColor": {
+      "ENG": "Invert Color",
+      "RUS": "Инвертировать цвет"
    },
    "zoomX": {
       "ENG": "Translation X",
@@ -68,8 +72,16 @@
       "RUS": "Цвет меню"
    },
    "guiGroup": {
-      "ENG": "MeasurementGroup",
-      "RUS": "ГруппаЗамеров"
+      "ENG": "Group",
+      "RUS": "Группа"
+   },
+   "guiRemoveGroup": {
+      "ENG": "Remove group",
+      "RUS": "Удалить группу"
+   },
+   "guiNewGroup": {
+      "ENG": "New measurements group",
+      "RUS": "Добавить группу измерений"
    },
    "guiGroupDenotation": {
       "ENG": "Denotation",
@@ -83,21 +95,49 @@
       "ENG": "Remove measurement",
       "RUS": "Удалить замер"
    },
+   "guiRelativeLength": {
+      "ENG": "Relative length",
+      "RUS": "Длина относит."
+   },
+   "guiAbsoluteLength": {
+      "ENG": "Absolute length",
+      "RUS": "Длина абсолют."
+   },
    "measuresFolder": {
-      "ENG": "Measurements",
+      "ENG": "All measurements",
       "RUS": "Все замеры"
    },
    "guiGroupColor": {
       "ENG": "Group color",
-      "RUS": "Цвет"
+      "RUS": "Цвет группы"
+   },
+   "guiBaseAbsoluteValue": {
+      "ENG": "Unit's absolute length",
+      "RUS": "Длина базиса абсолютн."
+   },
+   "guiNewGroupName": {
+      "ENG": "New group name",
+      "RUS": "Новое имя"
+   },
+   "guiSelectedMeasure": {
+      "ENG": "Selected measure-nt",
+      "RUS": "Выбранный замер"
+   },
+   "defaultGroupName": {
+      "ENG": "Group",
+      "RUS": "Группа"
    },
    "measure": {
-      "ENG": "Measurement",
-      "RUS": "Замер"
+      "ENG": "> Measure.",
+      "RUS": "> Замер"
    },
-   "baseMeasure": {
-      "ENG": "UnitMeasurement",
-      "RUS": "БазисЗамер"
+   "baseMeasurePrefix": {
+      "ENG": "> Measure. ",
+      "RUS": "> Замер "
+   },
+   "baseMeasureSuffix": {
+      "ENG": " (Unit)",
+      "RUS": " (Базисный)"
    },
    "beginPointX": {
       "ENG": "Begin X",
@@ -141,10 +181,14 @@
    },
    "guiAskUnsaved": {
       "ENG": "Confirmation pop-up",
-      "RUS": "Спрашивать о закрытии"
+      "RUS": "Спрашивать подтверждение"
    },
    "loosingUnsavedDialog": {
       "ENG": "The measurements for this photo will be lost. Continue?",
       "RUS": "Все замеры для этого фото будут сброшены. Продолжить?"
+   },
+   "removeGroupDialog": {
+      "ENG": "Are you sure removing this group?",
+      "RUS": "Точно удалить группу замеров?"
    }
 }
