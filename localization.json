@@ -76,24 +76,24 @@
       "RUS": "Группа"
    },
    "guiRemoveGroup": {
-      "ENG": "Remove group",
-      "RUS": "Удалить группу"
+      "ENG": "➖ Remove group",
+      "RUS": "➖ Удалить группу"
    },
    "guiNewGroup": {
-      "ENG": "New measurements group",
-      "RUS": "Добавить группу измерений"
+      "ENG": "➕ New measurements group",
+      "RUS": "➕ Добавить группу измерений"
    },
    "guiGroupDenotation": {
       "ENG": "Denotation",
       "RUS": "Обозначение"
    },
    "guiNewMeasure": {
-      "ENG": "New measurement",
-      "RUS": "Добавить замер"
+      "ENG": "➕ New measurement",
+      "RUS": "➕ Добавить замер"
    },
    "guiRemoveMeasure": {
-      "ENG": "Remove measurement",
-      "RUS": "Удалить замер"
+      "ENG": "➖ Remove measurement",
+      "RUS": "➖ Удалить замер"
    },
    "guiRelativeLength": {
       "ENG": "Relative length",
@@ -111,6 +111,18 @@
       "ENG": "Group color",
       "RUS": "Цвет группы"
    },
+   "guiGroupColorOpacity": {
+      "ENG": "Opacity",
+      "RUS": "Прозрачность"
+   },
+   "guiGroupIsRendered": {
+      "ENG": "Show/hide 👁️",
+      "RUS": "Вкл/Выкл 👁️"
+   },
+   "guiLineWidth": {
+      "ENG": "Lines width",
+      "RUS": "Ширина линий"
+   },
    "guiBaseAbsoluteValue": {
       "ENG": "Unit's absolute length",
       "RUS": "Длина базиса абсолютн."
@@ -120,44 +132,44 @@
       "RUS": "Новое имя"
    },
    "guiSelectedMeasure": {
-      "ENG": "Selected measure-nt",
-      "RUS": "Выбранный замер"
+      "ENG": "🔍 Selected measure.",
+      "RUS": "🔍 Выбранный замер"
    },
    "defaultGroupName": {
       "ENG": "Group",
       "RUS": "Группа"
    },
    "measure": {
-      "ENG": "> Measure.",
-      "RUS": "> Замер"
+      "ENG": "🔍 Measure.",
+      "RUS": "🔍 Замер"
    },
    "baseMeasurePrefix": {
-      "ENG": "> Measure. ",
-      "RUS": "> Замер "
+      "ENG": "🔍 Measure. ",
+      "RUS": "🔍 Замер "
    },
    "baseMeasureSuffix": {
       "ENG": " (Unit)",
       "RUS": " (Базисный)"
    },
    "beginPointX": {
-      "ENG": "Begin X",
-      "RUS": "Начало X"
+      "ENG": "← Begin X",
+      "RUS": "← Начало X"
    },
    "beginPointY": {
-      "ENG": "Begin Y",
-      "RUS": "Начало Y"
+      "ENG": "← Begin Y",
+      "RUS": "← Начало Y"
    },
    "endPointX": {
-      "ENG": "End X",
-      "RUS": "Конец X"
+      "ENG": "→ End X",
+      "RUS": "→ Конец X"
    },
    "endPointY": {
-      "ENG": "End Y",
-      "RUS": "Конец Y"
+      "ENG": "→ End Y",
+      "RUS": "→ Конец Y"
    },
    "openImageFiles": {
-      "ENG": "Upload photo",
-      "RUS": "Загрузить фото"
+      "ENG": "📁 Upload photo",
+      "RUS": "📁 Загрузить фото"
    },
    "closeControls": {
       "ENG": "Close Controls",

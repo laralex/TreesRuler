@@ -8,7 +8,9 @@ var imgView;
 
 let generalSettings = new function() {
   this.crosshairEnabled = true;
-  this.language = 'RUS';
+  this.language = 'Russian';
+  this.languageGuiToId = {'Russian': 'RUS', 'English': 'ENG'};
+  this.lineWidth = 10;
   this.guiOpacity = 0.9;
   this.guiWidth = 300;
   this.guiTheme = 'yorha';
@@ -43,7 +45,7 @@ let imageInfo = new function() {
 
 function getLocalized(key) {
   if (key in localization) {
-    return localization[key][generalSettings.language];
+    return localization[key][generalSettings.languageGuiToId[generalSettings.language]];
   }
   console.warn(key, ' missing localization');
   return key;
@@ -214,6 +216,8 @@ class MeasureGroupGuiComposer {
     }
     let groupBoundData = {
       ...defaults,
+      opacity: 1.0,
+      isRendered: true,
       baseMeasure: {
         x0: Math.random()*1000,
         y0: Math.random()*1000,
@@ -236,12 +240,26 @@ class MeasureGroupGuiComposer {
       }
     }));
     guiObjects.push(gui.Register({
+      type: 'checkbox',
+      label: getLocalized('guiGroupIsRendered'),
+      property: 'isRendered',
+      object: groupBoundData, folder: groupFolder,
+    }));
+    guiObjects.push(gui.Register({
         type: 'color',
         label: getLocalized('guiGroupColor'),
         format: 'hex',
         property: 'color',
         object: groupBoundData, folder: groupFolder
     }));
+    // guiObjects.push(gui.Register({
+    //     type: 'range',
+    //     label: getLocalized('guiGroupColorOpacity'),
+    //     min: 0.0, max: 1.0, step:0.05,
+    //     property: 'opacity',
+    //     object: groupBoundData, folder: groupFolder,
+    // }));
+
     guiObjects.push(gui.Register({
         type: 'text',
         label: getLocalized('guiGroupDenotation'),
@@ -251,14 +269,10 @@ class MeasureGroupGuiComposer {
 
     guiObjects.push(this._addFloatNoSlider(gui, {
       type: 'range',
-      listenTo: 'change',
       label: getLocalized('guiBaseAbsoluteValue'),
       min: 1e-3, max: 1e6, step:1e-6,
       property: 'baseAbsoluteLength',
       object: groupBoundData, folder: groupFolder,
-      onChange: (data) => {
-        print(data);
-      }
     }));
 
     guiObjects.push(gui.Register({
@@ -335,7 +349,7 @@ function setupGui(gui, panel) {
   gui.Register([
     {
       type: 'select',
-      options: ['RUS', 'ENG'],
+      options: ['Russian', 'English'],
       label: getLocalized('language'),
       object: panel,
       property: 'language',
@@ -349,8 +363,8 @@ function setupGui(gui, panel) {
       property: 'guiAskUnsaved',
       object: panel,
     },
-
-    {
+  ]);
+  let guiFile = gui.Register({
       type: 'file',
       label: getLocalized('openImageFiles'),
       object: this,
@@ -361,14 +375,14 @@ function setupGui(gui, panel) {
           print('Cancel openning of file');
         }
       }
-    },
-    {
+  });
+  guiFile.container.lastChild.innerText = "";
+  gui.Register({
       type: 'display',
       label: getLocalized('imageSize'),
       object: imageInfo, property: 'imageSizeStr',
       listenMode: 'change',
-    }
-  ]);
+  });
   gui.Register([
     {
       type: 'folder',
@@ -491,6 +505,15 @@ function setupGui(gui, panel) {
   ], { object: crosshairSettings, folder: getLocalized('crosshairFolder') });
 
   gui.Register({
+    type: 'range',
+    label: getLocalized('guiLineWidth'),
+    folder: getLocalized('measuresFolder'),
+    min: 1, max: 100, step: 1,
+    object: generalSettings,
+    property: 'lineWidth',
+  });
+
+  gui.Register({
     type: 'text',
     listenMode: 'change',
     label: getLocalized('guiNewGroupName'),
@@ -498,6 +521,7 @@ function setupGui(gui, panel) {
     property: 'nextGroupName',
     object: generalSettings,
   });
+
 
   gui.Register({
     type: 'button',
@@ -581,18 +605,14 @@ function drawCrosshair({x=0, y=0, beginOffset=0, endOffset=0, colorHexStr="#0000
   pop();
 }
 
-function drawZoomRect(bbox) {
-  push();
-  stroke(255, 0, 0);
-  noFill();
-  rect(bbox.left, bbox.top, bbox.width, bbox.height);
-  pop();
-}
-
 function drawMeasurements(panX, panY, zoom) {
   push();
-  strokeWeight(4*zoom);
+  strokeWeight(generalSettings.lineWidth*(log(zoom+1)));
+  strokeCap(SQUARE);
   guiMeasureComposer.groups.forEach(group => {
+    if (!group.data.isRendered) {
+      return;
+    }
     var measure = group.data.baseMeasure;
     stroke(group.data.color);
     line(measure.x0*zoom + panX,
@@ -632,13 +652,15 @@ function draw() {
       colorHexStr: crosshairSettings.crosshairColor,
       blendingMode: crosshairSettings.invertColor ? DIFFERENCE : BLEND,
     });
-    drawCrosshair({
-      x: mouseX, y: mouseY,
-      beginOffset: crosshairSettings.crosshairRadius,
-      endOffset: crosshairSettings.crosshairLinesEnd,
-      colorHexStr: "#eeeeee",
-      blendingMode: crosshairSettings.invertColor ? OVERLAY : BLEND,
-    });
+    if (crosshairSettings.invertColor) {
+      drawCrosshair({
+        x: mouseX, y: mouseY,
+        beginOffset: crosshairSettings.crosshairRadius,
+        endOffset: crosshairSettings.crosshairLinesEnd,
+        colorHexStr: "#eeeeee",
+        blendingMode: OVERLAY,
+      });
+    }
     blendMode(BLEND);
   }
 }
