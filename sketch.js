@@ -3,6 +3,7 @@
 let img;
 let localization;
 let gui;
+let font;
 let guiMeasureComposer;
 var imgView;
 
@@ -11,6 +12,7 @@ let generalSettings = new function() {
   this.language = 'Russian';
   this.languageGuiToId = {'Russian': 'RUS', 'English': 'ENG'};
   this.lineWidth = 10;
+  this.textWidth = 20;
   this.guiOpacity = 0.9;
   this.guiWidth = 300;
   this.guiTheme = 'yorha';
@@ -153,7 +155,7 @@ class MeasureGroupGuiComposer {
       let guiObj = gui.Register(definition, { folder: viewFolder });
       if (key !== 'label' || key !== 'removeButton') {
         // guiObj.SetEnabled(false)
-        this.viewGuiObjects.key = guiObj;
+        // this.viewGuiObjects.key = guiObj;
       }
     }
   }
@@ -219,10 +221,8 @@ class MeasureGroupGuiComposer {
       opacity: 1.0,
       isRendered: true,
       baseMeasure: {
-        x0: Math.random()*1000,
-        y0: Math.random()*1000,
-        x1: Math.random()*1000,
-        y1: Math.random()*1000,
+        begin: createVector(Math.random()*1000, Math.random()*1000),
+        end: createVector(Math.random()*1000, Math.random()*1000),
         guiObjects: null},
       baseAbsoluteLength: 1.0,
       measures: []
@@ -281,7 +281,10 @@ class MeasureGroupGuiComposer {
       folder: groupFolder,
       action: () => {
         let index = groupBoundData.measures.length;
-        groupBoundData.measures.push({x0: Math.random()*1000, y0: Math.random()*1000, x1: 0, y1: 0, guiObjects: null});
+        groupBoundData.measures.push({
+          begin: createVector(0, 0),
+          end: createVector(Math.random()*1000, Math.random()*1000),
+          guiObjects: null});
         let measureGuiObjects = this._newMeasure({
           gui: gui, parentFolder: groupFolder,
           newFolderName: `${getLocalized('measure')} ${index+1}${uniqueSpaces}`,
@@ -324,7 +327,7 @@ function tryCatch(func, failFunc) {
   catch(e) { return failFunc(e) }
 }
 
-function setupGui(gui, panel) {
+function setupGui(gui) {
   if (gui !== undefined) {
     let guifyContainers = document.getElementsByClassName('guify-container');
     for (let element of guifyContainers) {
@@ -335,14 +338,14 @@ function setupGui(gui, panel) {
 
   gui = new guify({
     title:  getLocalized('title'),
-    theme: panel.guiTheme, // dark, light, yorha, or theme object
+    theme: generalSettings.guiTheme, // dark, light, yorha, or theme object
     align: 'right', // left, right
-    width: panel.guiWidth,
+    width: generalSettings.guiWidth,
     barMode: 'above', // none, overlay, above, offset
     panelMode: 'inner',
     panelOverflowBehavior: 'scroll',
     pollRateMS: 200,
-    opacity: panel.guiOpacity,
+    opacity: generalSettings.guiOpacity,
     open: true
   });
   document.title = getLocalized('title');
@@ -351,17 +354,17 @@ function setupGui(gui, panel) {
       type: 'select',
       options: ['Russian', 'English'],
       label: getLocalized('language'),
-      object: panel,
+      object: generalSettings,
       property: 'language',
       onChange: (data) => {
-        setupGui(gui, panel);
+        setupGui(gui);
       },
     },
     {
       type: 'checkbox',
       label: getLocalized('guiAskUnsaved'),
       property: 'guiAskUnsaved',
-      object: panel,
+      object: generalSettings,
     },
   ]);
   let guiFile = gui.Register({
@@ -409,41 +412,45 @@ function setupGui(gui, panel) {
     },
   ]);
 
+  const guiWidthInitFunc = function(data) {
+    print('Resize GUI', data);
+    let value = data+'px';
+    document.getElementsByClassName('guify-panel-container')[0].style.width = value;
+  };
+  guiWidthInitFunc(generalSettings.guiWidth);
+
   gui.Register([
     {
       type: 'range',
       label: getLocalized('guiOpacity'),
       min: 0.1, max: 1.0, step: 0.05,
-      object: panel,
+      object: generalSettings,
       property: 'guiOpacity',
       onChange: (data) => {
         document.getElementsByClassName('guify-panel-container')[0].style.opacity = data;
       }
     },
-
     {
       type: 'select',
       label: getLocalized('guiWidth'),
       options: [300, 375, 600],
-      object: panel,
+      object: generalSettings,
       property: 'guiWidth',
-      onChange: (data) => {
-        let value = data+'px';
-        document.getElementsByClassName('guify-panel-container')[0].style.width = value;
-      }
+      onInitialize: guiWidthInitFunc,
+      onChange: guiWidthInitFunc
     },
 
     {
       type: 'select',
       label: getLocalized('guiTheme'),
       options: ['yorha', 'dark', 'light'],
-      object: panel,
+      object: generalSettings,
       property: 'guiTheme',
       onChange: (data) => {
-        setupGui(gui, panel);
+        setupGui(gui);
       }
     },
-  ], { object: panel, folder: getLocalized('guiFolder') });
+  ], { object: generalSettings, folder: getLocalized('guiFolder') });
 
   gui.Register([
     {
@@ -514,6 +521,15 @@ function setupGui(gui, panel) {
   });
 
   gui.Register({
+    type: 'range',
+    label: getLocalized('guiTextWidth'),
+    folder: getLocalized('measuresFolder'),
+    min: 1, max: 100, step: 1,
+    object: generalSettings,
+    property: 'textWidth',
+  });
+
+  gui.Register({
     type: 'text',
     listenMode: 'change',
     label: getLocalized('guiNewGroupName'),
@@ -576,12 +592,13 @@ function myLoadImage(uri) {
 
 function preload() {
   localization = loadJSON('./localization.json');
+  font = loadFont('./assets/fonts/inconsolata/Inconsolata-Regular.ttf');
 }
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   windowResized();
-  gui = setupGui(gui, generalSettings);
+  gui = setupGui(gui);
   myLoadImage('./assets/example_trees/000006.jpg');
 }
 
@@ -605,21 +622,37 @@ function drawCrosshair({x=0, y=0, beginOffset=0, endOffset=0, colorHexStr="#0000
   pop();
 }
 
-function drawMeasurement(measurementData, panX, panY, zoom, markWeight) {
-  const beginX = measurementData.x0*zoom + panX,
-        beginY = measurementData.y0*zoom + panY,
-        endX = measurementData.x1*zoom + panX,
-        endY = measurementData.y1*zoom + panY;
+function drawMeasurement(measurementData, panX, panY, zoom, markWeight, textWeight) {
+  const beginX = measurementData.begin.x*zoom + panX,
+        beginY = measurementData.begin.y*zoom + panY,
+        endX = measurementData.end.x*zoom + panX,
+        endY = measurementData.end.y*zoom + panY;
   line(beginX, beginY, endX, endY);
-  push();
-  tint(50, 255);
   var perpX = beginY - endY, perpY = endX - beginX;
   const norm = sqrt(perpX*perpX + perpY*perpY);
   perpX = perpX * markWeight / norm;
   perpY = perpY * markWeight / norm;
-  line(beginX - perpX, beginY - perpY, beginX + perpX, beginY + perpY); // begin perpendicular mark
-  line(endX - perpX, endY - perpY, endX + perpX, endY + perpY); // end perpendicular mark
-  noTint();
+
+  // perpendicular marks
+  line(beginX - perpX, beginY - perpY, beginX + perpX, beginY + perpY);
+  line(endX - perpX, endY - perpY, endX + perpX, endY + perpY);
+  
+  // draw measurements text
+  push();
+  textSize(textWeight);
+  var lengthText = measurementData.unitLength.toFixed(3).toString();
+  if (abs(measurementData.unitLength - measurementData.absoluteLength) > 0.001) {
+    lengthText = lengthText + ' (' + measurementData.absoluteLength.toFixed(3) + ')';
+  }
+  strokeWeight(0);
+  let textX = endX + 20*zoom, textY = endY, textPadding = textWeight*0.2;
+  let bbox = font.textBounds(lengthText, textX, textY, textWeight);
+  fill(255, 175);
+  rect(bbox.x-textPadding, bbox.y, bbox.w + 2*textPadding, bbox.h);
+  fill(0);
+  textFont(font);
+  text(lengthText, textX, textY);
+
   pop();
 };
 
@@ -627,6 +660,7 @@ function drawMeasurements(panX, panY, zoom) {
   push();
   const lineWeight = generalSettings.lineWidth*(log(zoom+1));
   const markWeight = lineWeight * 3;
+  const textWeight = generalSettings.textWidth - zoom*(generalSettings.textWidth - 10)/zoomSettings.zoomMax;
   strokeCap(SQUARE);
   strokeWeight(lineWeight);
   guiMeasureComposer.groups.forEach(group => {
@@ -634,16 +668,32 @@ function drawMeasurements(panX, panY, zoom) {
       return;
     }
     stroke(group.data.color);
-    drawMeasurement(group.data.baseMeasure, panX, panY, zoom, markWeight);
+    drawMeasurement(group.data.baseMeasure, panX, panY, zoom, markWeight, textWeight);
     for (var measure of group.data.measures) {
-      drawMeasurement(measure, panX, panY, zoom, markWeight);
+      drawMeasurement(measure, panX, panY, zoom, markWeight, textWeight);
     }
   });
   pop();
 }
 
+
+function updateMeasurementsLengths() {
+  guiMeasureComposer.groups.forEach(group => {
+    const base = group.data.baseMeasure;
+    base.pixelLength = p5.Vector.sub(base.end, base.begin).mag();
+    base.unitLength = 1.0;
+    base.absoluteLength = group.data.baseAbsoluteLength;
+    for (var measure of group.data.measures) {
+      measure.pixelLength = p5.Vector.sub(measure.end, measure.begin).mag();
+      measure.unitLength = measure.pixelLength / base.pixelLength;
+      measure.absoluteLength = measure.unitLength * group.baseAbsoluteLength;
+    }
+  });
+}
+
 function draw() {
   clear();
+  updateMeasurementsLengths();
   if (imgView !== undefined) {
     let zoomScreenBbox = imgView.toScreenBbox(
       windowWidth, windowHeight,

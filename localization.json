@@ -123,6 +123,10 @@
       "ENG": "Lines width",
       "RUS": "Ширина линий"
    },
+   "guiTextWidth": {
+      "ENG": "Text size",
+      "RUS": "Шрифт"
+   },
    "guiBaseAbsoluteValue": {
       "ENG": "Unit's absolute length",
       "RUS": "Длина базиса абсолютн."
