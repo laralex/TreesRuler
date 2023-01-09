@@ -605,26 +605,38 @@ function drawCrosshair({x=0, y=0, beginOffset=0, endOffset=0, colorHexStr="#0000
   pop();
 }
 
+function drawMeasurement(measurementData, panX, panY, zoom, markWeight) {
+  const beginX = measurementData.x0*zoom + panX,
+        beginY = measurementData.y0*zoom + panY,
+        endX = measurementData.x1*zoom + panX,
+        endY = measurementData.y1*zoom + panY;
+  line(beginX, beginY, endX, endY);
+  push();
+  tint(50, 255);
+  var perpX = beginY - endY, perpY = endX - beginX;
+  const norm = sqrt(perpX*perpX + perpY*perpY);
+  perpX = perpX * markWeight / norm;
+  perpY = perpY * markWeight / norm;
+  line(beginX - perpX, beginY - perpY, beginX + perpX, beginY + perpY); // begin perpendicular mark
+  line(endX - perpX, endY - perpY, endX + perpX, endY + perpY); // end perpendicular mark
+  noTint();
+  pop();
+};
+
 function drawMeasurements(panX, panY, zoom) {
   push();
-  strokeWeight(generalSettings.lineWidth*(log(zoom+1)));
+  const lineWeight = generalSettings.lineWidth*(log(zoom+1));
+  const markWeight = lineWeight * 3;
   strokeCap(SQUARE);
+  strokeWeight(lineWeight);
   guiMeasureComposer.groups.forEach(group => {
     if (!group.data.isRendered) {
       return;
     }
-    var measure = group.data.baseMeasure;
     stroke(group.data.color);
-    line(measure.x0*zoom + panX,
-      measure.y0*zoom + panY,
-      measure.x1*zoom + panX,
-      measure.y1*zoom + panY);
-    // stroke(group.data.color);
+    drawMeasurement(group.data.baseMeasure, panX, panY, zoom, markWeight);
     for (var measure of group.data.measures) {
-      line(measure.x0*zoom + panX,
-        measure.y0*zoom + panY,
-        measure.x1*zoom + panX,
-        measure.y1*zoom + panY);
+      drawMeasurement(measure, panX, panY, zoom, markWeight);
     }
   });
   pop();
