@@ -6,6 +6,7 @@ let gui;
 let font;
 let guiMeasureComposer;
 var imgView;
+var draggedEndpoints;
 
 let generalSettings = new function() {
   this.crosshairEnabled = true;
@@ -85,26 +86,32 @@ class MeasureGroupGuiComposer {
     { color: '#ffffff', denotation: 'E' },
   ];
 
-  constructor(imageWidth, imageHeight) {
+  constructor() {
     this.groups = [];
-    this.imageWidth = imageWidth;
-    this.imageHeight = imageHeight;
     this.nextDefaultIndex = 0;
     this.viewGuiObjects = {};
-    this.viewMeasureObjects = null;
+    this.viewMeasure = null;
     print(getLocalized('defaultGroupName'))
     generalSettings.nextGroupName = getLocalized('defaultGroupName')+0;
   }
 
-  viewMeasurement(guiObjects, measurementBoundData) {
-    print('Selected', measurementBoundData);
-    for(const [key, guiObj] of Object.entries(this.viewGuiObjects)) {
-      guiObj.bounding.object = measurementBoundData;
-      guiObj.bounding.property = key;
-    }
+  getViewedMeasurement() {
+    return this.viewMeasure;
   }
 
-  addViewGui(gui, viewFolder) {
+  viewMeasurement(measurementBoundData) {
+    this.viewMeasure = measurementBoundData;
+    print('Selected', measurementBoundData);
+    if (measurementBoundData === null) {
+      return;
+    }
+    // for(const [key, guiObj] of Object.entries(this.viewGuiObjects)) {
+    //   guiObj.bounding.object = measurementBoundData;
+    //   guiObj.bounding.property = key;
+    // }
+  }
+
+  addViewGui(gui, viewFolder, imageWidth, imageHeight) {
     const definitions = {
       label: {
         type: 'display',
@@ -112,24 +119,24 @@ class MeasureGroupGuiComposer {
         initial: getLocalized('guiSelectedMeasure'),
       },
       x0 : {
-        type: 'range',
+        type: 'display',
         label: getLocalized('beginPointX'),
-        min: 0, max: this.imageWidth, step: 1,
+        // min: 0, max: imageWidth, step: 1,
       },
       y0 : {
-        type: 'range',
+        type: 'display',
         label: getLocalized('beginPointY'),
-        min: 0, max: this.imageHeight, step: 1,
+        // min: 0, max: imageHeight, step: 1,
       },
       x1 : {
-        type: 'range',
+        type: 'display',
         label: getLocalized('endPointX'),
-        min: 0, max: this.imageWidth, step: 1,
+        // min: 0, max: imageWidth, step: 1,
       },
       y1 : {
-        type: 'range',
+        type: 'display',
         label: getLocalized('endPointY'),
-        min: 0, max: this.imageHeight, step: 1,
+        // min: 0, max: imageHeight, step: 1,
       },
       relativeLength : {
         type: 'display',
@@ -143,8 +150,8 @@ class MeasureGroupGuiComposer {
             type: 'button',
             label: getLocalized('guiRemoveMeasure'),
             action: () => {
-              if (this.viewMeasureObjects === null) { return; }
-              this.viewMeasureObjects.forEach(obj => tryCatch(
+              if (this.viewGuiObjects === null) { return; }
+              this.viewGuiObjects.forEach(obj => tryCatch(
                 ()=>gui.Remove(obj),
                 (e)=>{}
               ))
@@ -154,10 +161,13 @@ class MeasureGroupGuiComposer {
     for (const [key, definition] of Object.entries(definitions)) {
       let guiObj = gui.Register(definition, { folder: viewFolder });
       if (key !== 'label' || key !== 'removeButton') {
-        // guiObj.SetEnabled(false)
         // this.viewGuiObjects.key = guiObj;
       }
     }
+  }
+
+  updateViewGui(imageWidth, imageHeight) {
+
   }
 
   _newMeasure({gui=null, parentFolder=null, newFolderName=null, boundData=null}) {
@@ -548,8 +558,8 @@ function setupGui(gui) {
     }
   });
 
-  guiMeasureComposer = new MeasureGroupGuiComposer(1, 1);
-  guiMeasureComposer.addViewGui(gui, null);
+  guiMeasureComposer = new MeasureGroupGuiComposer();
+  guiMeasureComposer.addViewGui(gui, null, 1, 1);
 
   let guifyBarButtons = document.getElementsByClassName('guify-bar-button');
   for (let element of guifyBarButtons) {
@@ -584,7 +594,7 @@ function myLoadImage(uri) {
     if (guiMeasureComposer !== undefined) {
       guiMeasureComposer.removeAllGroups(gui);
     }
-    guiMeasureComposer = new MeasureGroupGuiComposer(img.width, img.height);
+    guiMeasureComposer.updateViewGui(img.width, img.height);
     print('Loaded image', uri.slice(0, 100));
   });
   
@@ -627,6 +637,13 @@ function drawMeasurement(measurementData, panX, panY, zoom, markWeight, textWeig
         beginY = measurementData.begin.y*zoom + panY,
         endX = measurementData.end.x*zoom + panX,
         endY = measurementData.end.y*zoom + panY;
+  if (measurementData == guiMeasureComposer.getViewedMeasurement()) {
+    fill(255, 100, 100, 175);
+    tint(100, 255);
+  } else {
+    fill(255, 175);
+  }
+
   line(beginX, beginY, endX, endY);
   var perpX = beginY - endY, perpY = endX - beginX;
   const norm = sqrt(perpX*perpX + perpY*perpY);
@@ -647,7 +664,7 @@ function drawMeasurement(measurementData, panX, panY, zoom, markWeight, textWeig
   strokeWeight(0);
   let textX = endX + 20*zoom, textY = endY, textPadding = textWeight*0.2;
   let bbox = font.textBounds(lengthText, textX, textY, textWeight);
-  fill(255, 175);
+
   rect(bbox.x-textPadding, bbox.y, bbox.w + 2*textPadding, bbox.h);
   fill(0);
   textFont(font);
@@ -686,7 +703,7 @@ function updateMeasurementsLengths() {
     for (var measure of group.data.measures) {
       measure.pixelLength = p5.Vector.sub(measure.end, measure.begin).mag();
       measure.unitLength = measure.pixelLength / base.pixelLength;
-      measure.absoluteLength = measure.unitLength * group.baseAbsoluteLength;
+      measure.absoluteLength = measure.unitLength * group.data.baseAbsoluteLength;
     }
   });
 }
@@ -742,5 +759,68 @@ function mouseDragged() {
   if (mouseButton === RIGHT) {
     zoomSettings.panX -= movedX/img.width/zoomSettings.zoom;
     zoomSettings.panY -= movedY/img.height/zoomSettings.zoom;
+  } else if (mouseButton === LEFT) {
+    if (draggedEndpoints) {
+      draggedEndpoints.forEach(point => {
+        point.x += movedX/zoomSettings.zoom;
+        point.y += movedY/zoomSettings.zoom;
+      });
+    }
+  }
+}
+
+function pointToLineDistanceSq(pointVec, beginVec, endVec, lineMagSq) {
+  if (lineMagSq === undefined) {
+    lineMagSq = p5.Vector.sub(beginVec, endVec).magSq();
+  }
+  const numeratorSqr = ((endVec.x - beginVec.x)*(beginVec.y - pointVec.y) - (beginVec.x - pointVec.x)*(endVec.y - beginVec.y));
+  return numeratorSqr*numeratorSqr/ lineMagSq;
+}
+
+function mousePressed() {
+  if (mouseButton === LEFT) {
+    let zoomScreenBbox = imgView.toScreenBbox(
+      windowWidth, windowHeight,
+      zoomSettings.zoom, zoomSettings.panX, zoomSettings.panY);
+
+    let mouseVec = createVector(mouseX-zoomScreenBbox.left, mouseY-zoomScreenBbox.top);
+    mouseVec.div(zoomSettings.zoom);
+    var nearestMeasurement = null;
+    var nearestDistanceSq = 1e6;
+    var nearestEndpoints = null;
+    const checkMeasure = function(measure, targetDistanceSq) {
+      const beginToMouse = p5.Vector.sub(measure.begin, mouseVec);
+      const mouseToEnd = p5.Vector.sub(mouseVec, measure.end);
+      const beginToEnd = p5.Vector.sub(measure.begin, measure.end);
+      var beginDistance = beginToMouse.magSq();
+      var endDistance = mouseToEnd.magSq();
+      const distanceToLine = pointToLineDistanceSq(mouseVec, measure.begin, measure.end, beginToEnd.magSq());
+      print(distanceToLine, beginDistance, endDistance);
+      targetDistanceSq = min(targetDistanceSq, nearestDistanceSq);
+      if (beginDistance <= targetDistanceSq || endDistance <= targetDistanceSq) {
+        if (beginDistance <= targetDistanceSq) {
+          nearestDistanceSq = beginDistance;
+          nearestMeasurement = measure;
+          nearestEndpoints = [measure.begin];
+        } else {
+          nearestDistanceSq = endDistance;
+          nearestMeasurement = measure;
+          nearestEndpoints = [measure.end];
+        }
+      } else if (distanceToLine < targetDistanceSq
+          && beginToMouse.dot(beginToEnd) > 0 
+          && mouseToEnd.dot(beginToEnd) > 0) {
+        nearestDistanceSq = distanceToLine;
+        nearestMeasurement = measure;
+        nearestEndpoints = [measure.begin, measure.end];
+      }
+    }
+    const targetDistanceSq = 1300;
+    guiMeasureComposer.groups.forEach(group => {
+      checkMeasure(group.data.baseMeasure, targetDistanceSq);
+      group.data.measures.forEach(measure => checkMeasure(measure, targetDistanceSq));
+    })
+    guiMeasureComposer.viewMeasurement(nearestMeasurement);
+    draggedEndpoints = nearestEndpoints;
   }
 }

@@ -144,12 +144,12 @@
       "RUS": "Группа"
    },
    "measure": {
-      "ENG": "🔍 Measure.",
-      "RUS": "🔍 Замер"
+      "ENG": "🔎 Measure.",
+      "RUS": "🔎 Замер"
    },
    "baseMeasurePrefix": {
-      "ENG": "🔍 Measure. ",
-      "RUS": "🔍 Замер "
+      "ENG": "🔎 Measure. ",
+      "RUS": "🔎 Замер "
    },
    "baseMeasureSuffix": {
       "ENG": " (Unit)",
