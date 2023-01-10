@@ -1,6 +1,7 @@
 //'use strict';
 
 let img;
+let imgEdges;
 let localization;
 let gui;
 let font;
@@ -24,6 +25,7 @@ let generalSettings = new function() {
   this.isCtrlButtonDown = false;
   this.isAltButtonDown = false;
   this.isShiftButtonDown = false;
+  this.measurementsDrawEnabled = true;
 }();
 
 function openImageFiles(){
@@ -37,6 +39,12 @@ let crosshairSettings = new function() {
   this.crosshairColor = '#ffff00';
   this.invertColor = true;
 }();
+
+// let edgeDetectionSettings = new function() {
+//   this.edgeDetectionEnabled = false;
+//   this.edgeDetectionThreshold = 0;
+//   this.edgeDetectionAmplification = 1;
+// }();
 
 let zoomSettings = new function() {
   this.panX = 0;
@@ -110,7 +118,7 @@ class MeasureGroupGuiComposer {
 
   viewMeasurement(measurementBoundData) {
     this.viewMeasure = measurementBoundData;
-    print('Selected', measurementBoundData);
+    print('Selected measurement');
 
     if (measurementBoundData === null) {
       this.viewGuiSetEnabled(false);
@@ -634,6 +642,50 @@ function setupGui(gui) {
   return gui;
 }
 
+function detectEdges(source, threshold, amplify) {
+  // Learning Processing
+  // Daniel Shiffman
+  // http://www.learningprocessing.com
+
+  let destination = createImage(source.width, source.height);
+
+  // Temporary-ish fix for retina machines
+  let oldPixelDensity = pixelDensity();
+  pixelDensity(1);
+
+  // We are going to look at both image's pixels
+  source.loadPixels();
+  destination.loadPixels();
+  
+  // Since we are looking at left neighbors
+  // We skip the first column
+  for (var x = 1; x < source.width; x++ ) {
+    for (var y = 0; y < source.height; y++ ) {
+      var loc = (x + y * source.width) * 4;
+      // The functions red(), green(), and blue() pull out the three color components from a pixel.
+      var r = source.pixels[loc   ]; 
+      var g = source.pixels[loc + 1];
+      var b = source.pixels[loc + 2];
+      
+      // Pixel to the left location and color
+      var leftLoc = ((x - 1) + y * source.width) * 4;
+      var rleft = source.pixels[leftLoc   ]; 
+      var gleft = source.pixels[leftLoc + 1];
+      var bleft = source.pixels[leftLoc + 2];      
+      // New color is difference between pixel and left neighbor
+      destination.pixels[loc    ] = amplify*(max(abs(r - rleft) - threshold, 0));
+      destination.pixels[loc + 1] = amplify*(max(abs(g - gleft) - threshold, 0));
+      destination.pixels[loc + 2] = amplify*(max(abs(b - bleft) - threshold, 0));
+      destination.pixels[loc + 3] = 255; // Always have to set alpha
+    }
+  }
+  
+  // We changed the pixels in destination
+  destination.updatePixels();
+
+  pixelDensity(oldPixelDensity);
+  return destination;
+}
 function resetZoom() {
   zoomSettings.panX = 0;
   zoomSettings.panY = 0;
@@ -658,6 +710,9 @@ function myLoadImage(uri) {
       guiMeasureComposer.removeAllGroups(gui);
     }
     guiMeasureComposer.updateViewGui(img.width, img.height);
+    // imgEdges = detectEdges(img,
+    //   edgeDetectionSettings.edgeDetectionThreshold,
+    //   edgeDetectionSettings.edgeDetectionAmplification);
     print('Loaded image', uri.slice(0, 100));
   });
   
@@ -695,39 +750,64 @@ function drawCrosshair({x=0, y=0, beginOffset=0, endOffset=0, colorHexStr="#0000
   pop();
 }
 
-function drawMeasurement(measurementData, panX, panY, zoom, markWeight, textWeight, floatPrecision) {
+function drawMeasurement(lineColor, denotation, measurementData, panX, panY,
+  zoom, markWeight, textWeight, floatPrecision, isBaseMeasurement) {
   const beginX = measurementData.begin.x*zoom + panX,
         beginY = measurementData.begin.y*zoom + panY,
         endX = measurementData.end.x*zoom + panX,
         endY = measurementData.end.y*zoom + panY;
-  if (measurementData == guiMeasureComposer.getViewedMeasurement()) {
-    fill(255, 100, 100, 175);
-    tint(100, 255);
-  } else {
-    fill(255, 175);
-  }
+  push();
 
-  line(beginX, beginY, endX, endY);
+  // compute perpendicular marks
   var perpX = beginY - endY, perpY = endX - beginX;
   const norm = sqrt(perpX*perpX + perpY*perpY);
-  perpX = perpX * markWeight / norm;
-  perpY = perpY * markWeight / norm;
+  const markSize = 2.5*markWeight / norm; 
+  perpX *= markSize;
+  perpY *= markSize;
 
-  // perpendicular marks
+  const colorReducer = 25;
+  let accentuationColor = color(
+    lineColor._getRed()-colorReducer,
+    lineColor._getGreen()-colorReducer,
+    lineColor._getBlue()-colorReducer, 255);
+  push();
+  if (isBaseMeasurement) {
+    fill(accentuationColor);
+    circle(beginX + (endX - beginX)*0.5, beginY + (endY - beginY)*0.5, 15);
+  }
+  pop();
   line(beginX - perpX, beginY - perpY, beginX + perpX, beginY + perpY);
   line(endX - perpX, endY - perpY, endX + perpX, endY + perpY);
-  
+
+  // main line
+  line(beginX, beginY, endX, endY);
+
+  // endpoints dots
+  stroke(0, 0, 0);
+  point(beginX, beginY);
+  point(endX, endY);
+
+  // textboxes color
+  if (measurementData == guiMeasureComposer.getViewedMeasurement()) {
+    lineColor.setAlpha(175)
+    fill(lineColor);
+  } else {
+    fill(255, 255, 255, 175);
+  }
+
   // draw measurements text
-  push();
   textSize(textWeight);
-  var lengthText = measurementData.relativeLength.toFixed(floatPrecision).toString();
+  var lengthText = denotation;
+  if (!isBaseMeasurement) {
+    lengthText += '=' + measurementData.relativeLength.toFixed(floatPrecision).toString();
+  }
   if (abs(measurementData.relativeLength - measurementData.absoluteLength) > 0.001) {
     lengthText = lengthText + ' (' + measurementData.absoluteLength.toFixed(floatPrecision) + ')';
   }
   strokeWeight(0);
-  let textX = endX + 20*zoom, textY = endY, textPadding = textWeight*0.2;
+  // let textX = beginX + (endX-beginX)*0.5, textY = beginY + (endY-beginY)*0.5, textPadding = textWeight*0.2;
+  let textX = endX + 15*zoom, textY = endY, textPadding = textWeight*0.2;
   let bbox = font.textBounds(lengthText, textX, textY, textWeight);
-
   rect(bbox.x-textPadding, bbox.y, bbox.w + 2*textPadding, bbox.h);
   fill(0);
   textFont(font);
@@ -739,7 +819,7 @@ function drawMeasurement(measurementData, panX, panY, zoom, markWeight, textWeig
 function drawMeasurements(panX, panY, zoom) {
   push();
   const lineWeight = generalSettings.lineWidth*(log(zoom+1));
-  const markWeight = lineWeight * 3;
+  const markWeight = lineWeight;
   const textWeight = generalSettings.textWidth - zoom*(generalSettings.textWidth - 10)/zoomSettings.zoomMax;
   strokeCap(SQUARE);
   strokeWeight(lineWeight);
@@ -747,10 +827,15 @@ function drawMeasurements(panX, panY, zoom) {
     if (!group.data.isRendered) {
       return;
     }
-    stroke(group.data.color);
-    drawMeasurement(group.data.baseMeasure, panX, panY, zoom, markWeight, textWeight, generalSettings.textFloatPrecision);
-    for (var measure of group.data.measures) {
-      drawMeasurement(measure, panX, panY, zoom, markWeight, textWeight, generalSettings.textFloatPrecision);
+    const groupColor = color(group.data.color);
+    stroke(groupColor);
+    drawMeasurement(groupColor, group.data.denotation + 0, group.data.baseMeasure,
+      panX, panY, zoom, markWeight, textWeight, generalSettings.textFloatPrecision,
+      true);
+    for (const [idx, measure] of group.data.measures.entries()) {
+      drawMeasurement(groupColor, group.data.denotation + (idx + 1), measure, 
+      panX, panY, zoom, markWeight, textWeight, generalSettings.textFloatPrecision,
+      false);
     }
   });
   pop();
@@ -783,7 +868,9 @@ function draw() {
       zoomScreenBbox.width, zoomScreenBbox.height);
     // const panX = zoomSettings.panX * img.width / zoomSettings.zoom;
     // const panY = zoomSettings.panY * img.height / zoomSettings.zoom;p
-    drawMeasurements(zoomScreenBbox.left, zoomScreenBbox.top, zoomSettings.zoom);
+    if (generalSettings.measurementsDrawEnabled) {
+      drawMeasurements(zoomScreenBbox.left, zoomScreenBbox.top, zoomSettings.zoom);
+    }
   }
 
   if (crosshairSettings.crosshairEnabled) {
@@ -836,12 +923,12 @@ function mouseDragged() {
         (mouseY-zoomScreenBbox.top)/zoomSettings.zoom);
       var offsetToNearestX = -1e6, offsetToNearestY = -1e6, snapDistancePx = 10/zoomSettings.zoom;
       if (draggedEndpoints.length == 1) {
-        point = draggedEndpoints[0];
-        point.x = mouseVec.x; // movedX/zoomSettings.zoom;
-        point.y = mouseVec.y; // movedY/zoomSettings.zoom;
+        draggedPoint = draggedEndpoints[0];
+        draggedPoint.x = mouseVec.x; // movedX/zoomSettings.zoom;
+        draggedPoint.y = mouseVec.y; // movedY/zoomSettings.zoom;
         if (generalSettings.isAltButtonDown) { print('ALT'); return; } // no snapping
         const computeSnapping = function(otherPoint) {
-          if (otherPoint == point) {
+          if (otherPoint == draggedPoint) {
             return;
           }
           if (abs(otherPoint.x - mouseVec.x) < abs(offsetToNearestX)) {
@@ -856,19 +943,15 @@ function mouseDragged() {
         computeSnapping({x: 0, y: 0});
         computeSnapping({x: img.width, y: img.height});
         if (abs(offsetToNearestX) < snapDistancePx) {
-          print('X', mouseVec.x, point.x);
-          point.x = mouseVec.x + offsetToNearestX;
-          // print('Snap X', snapDistancePx, offsetToNearestX);
+          draggedPoint.x = mouseVec.x + offsetToNearestX;
         } 
         if (abs(offsetToNearestY) < snapDistancePx) {
-          print('Y', mouseVec.y, point.y);
-          point.y = mouseVec.y + offsetToNearestY;
-          // print('Snap Y', snapDistancePx, offsetToNearestY);
+          draggedPoint.y = mouseVec.y + offsetToNearestY;
         }
       } else {
-        draggedEndpoints.forEach(point => {
-          point.x += movedX/zoomSettings.zoom;
-          point.y += movedY/zoomSettings.zoom;
+        draggedEndpoints.forEach(draggedPoint => {
+          draggedPoint.x += movedX/zoomSettings.zoom;
+          draggedPoint.y += movedY/zoomSettings.zoom;
         });
       }
     }
@@ -926,8 +1009,8 @@ function mousePressed() {
         nearestLine = [measure.begin, measure.end];
       }
     }
-    const targetPointDistanceSq = 120*generalSettings.lineWidth;
-    const targetLineDistanceSq = generalSettings.lineWidth*generalSettings.lineWidth;
+    const targetPointDistanceSq = 15*generalSettings.lineWidth/zoomSettings.zoom;
+    const targetLineDistanceSq = generalSettings.lineWidth*generalSettings.lineWidth/zoomSettings.zoom;
     guiMeasureComposer.forEachMeasure(
       measure => checkMeasure(measure, targetPointDistanceSq, targetLineDistanceSq));
     if (nearestEndpoint !== null) {
@@ -945,12 +1028,10 @@ function keyPressed() {
     generalSettings.isAltButtonDown = true;
   } else if (keyCode == CONTROL) {
     generalSettings.isCtrlButtonDown = true;
+    generalSettings.measurementsDrawEnabled = false;
   } else if (keyCode == SHIFT) {
     generalSettings.isShiftButtonDown = true;
   }
-  print('Alt', generalSettings.isAltButtonDown,
-    'Ctrl', generalSettings.isCtrlButtonDown,
-    'Shift', generalSettings.isShiftButtonDown);
 }
 
 function keyReleased() {
@@ -958,10 +1039,8 @@ function keyReleased() {
     generalSettings.isAltButtonDown = false;
   } else if (keyCode == CONTROL) {
     generalSettings.isCtrlButtonDown = false;
+    generalSettings.measurementsDrawEnabled = true;
   } else if (keyCode == SHIFT) {
     generalSettings.isShiftButtonDown = false;
   }
-  print('Alt', generalSettings.isAltButtonDown,
-    'Ctrl', generalSettings.isCtrlButtonDown,
-    'Shift', generalSettings.isShiftButtonDown);
 }
