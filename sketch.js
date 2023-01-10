@@ -840,7 +840,7 @@ function mouseDragged() {
         point.x = mouseVec.x; // movedX/zoomSettings.zoom;
         point.y = mouseVec.y; // movedY/zoomSettings.zoom;
         if (generalSettings.isAltButtonDown) { print('ALT'); return; } // no snapping
-        guiMeasureComposer.forEachPoint(otherPoint => {
+        const computeSnapping = function(otherPoint) {
           if (otherPoint == point) {
             return;
           }
@@ -850,7 +850,11 @@ function mouseDragged() {
           if (abs(otherPoint.y - mouseVec.y) < abs(offsetToNearestY)) {
             offsetToNearestY = otherPoint.y - mouseVec.y;
           }
-        });
+        }
+        guiMeasureComposer.forEachPoint(computeSnapping);
+        // snap to image borders
+        computeSnapping({x: 0, y: 0});
+        computeSnapping({x: img.width, y: img.height});
         if (abs(offsetToNearestX) < snapDistancePx) {
           print('X', mouseVec.x, point.x);
           point.x = mouseVec.x + offsetToNearestX;
