@@ -1,4 +1,4 @@
-'use strict';
+//'use strict';
 
 let img;
 let localization;
@@ -7,6 +7,7 @@ let font;
 let guiMeasureComposer;
 var imgView;
 var draggedEndpoints;
+var mouseIsOverGui;
 
 let generalSettings = new function() {
   this.crosshairEnabled = true;
@@ -14,11 +15,15 @@ let generalSettings = new function() {
   this.languageGuiToId = {'Russian': 'RUS', 'English': 'ENG'};
   this.lineWidth = 10;
   this.textWidth = 20;
+  this.textFloatPrecision = 3;
   this.guiOpacity = 0.9;
   this.guiWidth = 300;
   this.guiTheme = 'yorha';
   this.guiAskUnsaved = false;
   this.nextGroupName = null;
+  this.isCtrlButtonDown = false;
+  this.isAltButtonDown = false;
+  this.isShiftButtonDown = false;
 }();
 
 function openImageFiles(){
@@ -91,7 +96,7 @@ class MeasureGroupGuiComposer {
     this.nextDefaultIndex = 0;
     this.viewGuiObjects = {};
     this.viewMeasure = null;
-    print(getLocalized('defaultGroupName'))
+    this.dummyVariable = null;
     generalSettings.nextGroupName = getLocalized('defaultGroupName')+0;
   }
 
@@ -99,16 +104,39 @@ class MeasureGroupGuiComposer {
     return this.viewMeasure;
   }
 
+  viewGuiSetEnabled(isEnabled){
+    Object.values(this.viewGuiObjects).forEach(guiObj => guiObj.SetEnabled(isEnabled));
+  }
+
   viewMeasurement(measurementBoundData) {
     this.viewMeasure = measurementBoundData;
     print('Selected', measurementBoundData);
+
     if (measurementBoundData === null) {
+      this.viewGuiSetEnabled(false);
       return;
     }
-    // for(const [key, guiObj] of Object.entries(this.viewGuiObjects)) {
-    //   guiObj.bounding.object = measurementBoundData;
-    //   guiObj.bounding.property = key;
-    // }
+    
+    this.viewGuiSetEnabled(true);
+    const boundMap = {
+      x0: {object: measurementBoundData.begin, property: 'x'},
+      y0: {object: measurementBoundData.begin, property: 'y'},
+      x1: {object: measurementBoundData.end, property: 'x'},
+      y1: {object: measurementBoundData.end, property: 'y'},
+      relativeLength: {object: measurementBoundData, property: 'relativeLength'},
+      absoluteLength: {object: measurementBoundData, property: 'absoluteLength'},
+    }
+    for(const [key, mapping] of Object.entries(boundMap)) {
+      this.viewGuiObjects[key].binding.object = mapping.object;
+      this.viewGuiObjects[key].binding.property = mapping.property;
+    }
+  }
+
+  updateViewGui(imageWidth, imageHeight) {
+    this.viewGuiObjects.x0.max = this.viewGuiObjects.x0.maxPos = this.viewGuiObjects.x0.input.max = imageWidth;
+    this.viewGuiObjects.x1.max = this.viewGuiObjects.x1.maxPos = this.viewGuiObjects.x1.input.max = imageWidth;
+    this.viewGuiObjects.y0.max = this.viewGuiObjects.y0.maxPos = this.viewGuiObjects.y0.input.max = imageHeight;
+    this.viewGuiObjects.y1.max = this.viewGuiObjects.y1.maxPos = this.viewGuiObjects.y1.input.max = imageHeight;
   }
 
   addViewGui(gui, viewFolder, imageWidth, imageHeight) {
@@ -119,55 +147,59 @@ class MeasureGroupGuiComposer {
         initial: getLocalized('guiSelectedMeasure'),
       },
       x0 : {
-        type: 'display',
+        type: 'range',
         label: getLocalized('beginPointX'),
-        // min: 0, max: imageWidth, step: 1,
+        min: 0, max: imageWidth, step: 1,
+        object: this, property: 'dummyVariable',
+        onChange: (data) => {},
+        onInitialize: (data) => {},
       },
       y0 : {
-        type: 'display',
+        type: 'range',
         label: getLocalized('beginPointY'),
-        // min: 0, max: imageHeight, step: 1,
+        min: 0, max: imageHeight, step: 1,
+        object: this, property: 'dummyVariable'
       },
       x1 : {
-        type: 'display',
+        type: 'range',
         label: getLocalized('endPointX'),
-        // min: 0, max: imageWidth, step: 1,
+        min: 0, max: imageWidth, step: 1,
+        object: this, property: 'dummyVariable'
       },
       y1 : {
-        type: 'display',
+        type: 'range',
         label: getLocalized('endPointY'),
-        // min: 0, max: imageHeight, step: 1,
+        min: 0, max: imageHeight, step: 1,
+        object: this, property: 'dummyVariable'
       },
       relativeLength : {
         type: 'display',
         label: getLocalized('guiRelativeLength'),
+        object: this, property: 'dummyVariable'
       },
       absoluteLength : {
         type: 'display',
         label: getLocalized('guiAbsoluteLength'),
+        object: this, property: 'dummyVariable'
       },
       removeButton : {
             type: 'button',
             label: getLocalized('guiRemoveMeasure'),
             action: () => {
-              if (this.viewGuiObjects === null) { return; }
-              this.viewGuiObjects.forEach(obj => tryCatch(
+              if (this.viewMeasureGuiObjects === null) { return; }
+              Object.values(this.viewGuiObjects).forEach(obj => tryCatch(
                 ()=>gui.Remove(obj),
                 (e)=>{}
               ))
+              // TODO delete from arrays
             },
       }
     };
     for (const [key, definition] of Object.entries(definitions)) {
       let guiObj = gui.Register(definition, { folder: viewFolder });
-      if (key !== 'label' || key !== 'removeButton') {
-        // this.viewGuiObjects.key = guiObj;
-      }
+      this.viewGuiObjects[key] = guiObj;
     }
-  }
-
-  updateViewGui(imageWidth, imageHeight) {
-
+    this.viewGuiSetEnabled(false);
   }
 
   _newMeasure({gui=null, parentFolder=null, newFolderName=null, boundData=null}) {
@@ -177,7 +209,7 @@ class MeasureGroupGuiComposer {
         label: newFolderName,
         folder: parentFolder,
         action: () => {
-          this.viewMeasurement(objects, boundData);
+          this.viewMeasurement(boundData);
         }
       },
     ];
@@ -280,7 +312,7 @@ class MeasureGroupGuiComposer {
     guiObjects.push(this._addFloatNoSlider(gui, {
       type: 'range',
       label: getLocalized('guiBaseAbsoluteValue'),
-      min: 1e-3, max: 1e6, step:1e-6,
+      min: 1e-3, max: 1e6, step:1e-6, precision: 20,
       property: 'baseAbsoluteLength',
       object: groupBoundData, folder: groupFolder,
     }));
@@ -330,6 +362,22 @@ class MeasureGroupGuiComposer {
   removeAllGroups(gui) {
     this.groups.forEach(group => this.removeGroup(gui, group.groupFolder));
   }
+
+  forEachMeasure(func) {
+    this.groups.forEach(group => {
+      func(group.data.baseMeasure);
+      group.data.measures.forEach(measure => {
+        func(measure);
+      })
+    });
+  }
+
+  forEachPoint(func) {
+    this.forEachMeasure(measure => {
+      func(measure.begin);
+      func(measure.end);
+    })
+  }
 }
 
 function tryCatch(func, failFunc) {
@@ -358,6 +406,13 @@ function setupGui(gui) {
     opacity: generalSettings.guiOpacity,
     open: true
   });
+  gui.panel.container.mouseIsOver = false;
+  gui.panel.container.onmouseover = function()   {
+    this.mouseIsOverGui = true;
+  };
+  gui.panel.container.onmouseleave = function()   {
+    this.mouseIsOverGui = false;
+  };
   document.title = getLocalized('title');
   gui.Register([
     {
@@ -538,6 +593,14 @@ function setupGui(gui) {
     object: generalSettings,
     property: 'textWidth',
   });
+  gui.Register({
+    type: 'range',
+    label: getLocalized('guiTextFloatPrecision'),
+    folder: getLocalized('measuresFolder'),
+    min: 1, max: 25, step: 1,
+    object: generalSettings,
+    property: 'textFloatPrecision',
+  });
 
   gui.Register({
     type: 'text',
@@ -632,7 +695,7 @@ function drawCrosshair({x=0, y=0, beginOffset=0, endOffset=0, colorHexStr="#0000
   pop();
 }
 
-function drawMeasurement(measurementData, panX, panY, zoom, markWeight, textWeight) {
+function drawMeasurement(measurementData, panX, panY, zoom, markWeight, textWeight, floatPrecision) {
   const beginX = measurementData.begin.x*zoom + panX,
         beginY = measurementData.begin.y*zoom + panY,
         endX = measurementData.end.x*zoom + panX,
@@ -657,9 +720,9 @@ function drawMeasurement(measurementData, panX, panY, zoom, markWeight, textWeig
   // draw measurements text
   push();
   textSize(textWeight);
-  var lengthText = measurementData.unitLength.toFixed(3).toString();
-  if (abs(measurementData.unitLength - measurementData.absoluteLength) > 0.001) {
-    lengthText = lengthText + ' (' + measurementData.absoluteLength.toFixed(3) + ')';
+  var lengthText = measurementData.relativeLength.toFixed(floatPrecision).toString();
+  if (abs(measurementData.relativeLength - measurementData.absoluteLength) > 0.001) {
+    lengthText = lengthText + ' (' + measurementData.absoluteLength.toFixed(floatPrecision) + ')';
   }
   strokeWeight(0);
   let textX = endX + 20*zoom, textY = endY, textPadding = textWeight*0.2;
@@ -685,9 +748,9 @@ function drawMeasurements(panX, panY, zoom) {
       return;
     }
     stroke(group.data.color);
-    drawMeasurement(group.data.baseMeasure, panX, panY, zoom, markWeight, textWeight);
+    drawMeasurement(group.data.baseMeasure, panX, panY, zoom, markWeight, textWeight, generalSettings.textFloatPrecision);
     for (var measure of group.data.measures) {
-      drawMeasurement(measure, panX, panY, zoom, markWeight, textWeight);
+      drawMeasurement(measure, panX, panY, zoom, markWeight, textWeight, generalSettings.textFloatPrecision);
     }
   });
   pop();
@@ -698,12 +761,12 @@ function updateMeasurementsLengths() {
   guiMeasureComposer.groups.forEach(group => {
     const base = group.data.baseMeasure;
     base.pixelLength = p5.Vector.sub(base.end, base.begin).mag();
-    base.unitLength = 1.0;
+    base.relativeLength = 1.0;
     base.absoluteLength = group.data.baseAbsoluteLength;
     for (var measure of group.data.measures) {
       measure.pixelLength = p5.Vector.sub(measure.end, measure.begin).mag();
-      measure.unitLength = measure.pixelLength / base.pixelLength;
-      measure.absoluteLength = measure.unitLength * group.data.baseAbsoluteLength;
+      measure.relativeLength = measure.pixelLength / base.pixelLength;
+      measure.absoluteLength = measure.relativeLength * group.data.baseAbsoluteLength;
     }
   });
 }
@@ -756,15 +819,54 @@ function windowResized() {
 }
 
 function mouseDragged() {
+  if (gui.panel.container.mouseIsOverGui) {
+    print('Mouse over GUI');
+    return;
+  }
+  let zoomScreenBbox = imgView.toScreenBbox(
+    windowWidth, windowHeight,
+    zoomSettings.zoom, zoomSettings.panX, zoomSettings.panY);
   if (mouseButton === RIGHT) {
-    zoomSettings.panX -= movedX/img.width/zoomSettings.zoom;
-    zoomSettings.panY -= movedY/img.height/zoomSettings.zoom;
+    zoomSettings.panX -= movedX/zoomScreenBbox.width;
+    zoomSettings.panY -= movedY/zoomScreenBbox.height;
   } else if (mouseButton === LEFT) {
     if (draggedEndpoints) {
-      draggedEndpoints.forEach(point => {
-        point.x += movedX/zoomSettings.zoom;
-        point.y += movedY/zoomSettings.zoom;
-      });
+      let mouseVec = createVector(
+        (mouseX-zoomScreenBbox.left)/zoomSettings.zoom,
+        (mouseY-zoomScreenBbox.top)/zoomSettings.zoom);
+      var offsetToNearestX = -1e6, offsetToNearestY = -1e6, snapDistancePx = 10/zoomSettings.zoom;
+      if (draggedEndpoints.length == 1) {
+        point = draggedEndpoints[0];
+        point.x = mouseVec.x; // movedX/zoomSettings.zoom;
+        point.y = mouseVec.y; // movedY/zoomSettings.zoom;
+        if (generalSettings.isAltButtonDown) { print('ALT'); return; } // no snapping
+        guiMeasureComposer.forEachPoint(otherPoint => {
+          if (otherPoint == point) {
+            return;
+          }
+          if (abs(otherPoint.x - mouseVec.x) < abs(offsetToNearestX)) {
+            offsetToNearestX = otherPoint.x - mouseVec.x;
+          }
+          if (abs(otherPoint.y - mouseVec.y) < abs(offsetToNearestY)) {
+            offsetToNearestY = otherPoint.y - mouseVec.y;
+          }
+        });
+        if (abs(offsetToNearestX) < snapDistancePx) {
+          print('X', mouseVec.x, point.x);
+          point.x = mouseVec.x + offsetToNearestX;
+          // print('Snap X', snapDistancePx, offsetToNearestX);
+        } 
+        if (abs(offsetToNearestY) < snapDistancePx) {
+          print('Y', mouseVec.y, point.y);
+          point.y = mouseVec.y + offsetToNearestY;
+          // print('Snap Y', snapDistancePx, offsetToNearestY);
+        }
+      } else {
+        draggedEndpoints.forEach(point => {
+          point.x += movedX/zoomSettings.zoom;
+          point.y += movedY/zoomSettings.zoom;
+        });
+      }
     }
   }
 }
@@ -779,48 +881,83 @@ function pointToLineDistanceSq(pointVec, beginVec, endVec, lineMagSq) {
 
 function mousePressed() {
   if (mouseButton === LEFT) {
+    if (gui.panel.container.mouseIsOverGui) {
+      print('Mouse over GUI');
+      return;
+    }
     let zoomScreenBbox = imgView.toScreenBbox(
       windowWidth, windowHeight,
       zoomSettings.zoom, zoomSettings.panX, zoomSettings.panY);
 
     let mouseVec = createVector(mouseX-zoomScreenBbox.left, mouseY-zoomScreenBbox.top);
     mouseVec.div(zoomSettings.zoom);
-    var nearestMeasurement = null;
     var nearestDistanceSq = 1e6;
-    var nearestEndpoints = null;
-    const checkMeasure = function(measure, targetDistanceSq) {
+    var nearestEndpointMeasurement = null;
+    var nearestEndpoint = null;
+    var nearestLineMeasurement = null;
+    var nearestLine = null;
+    const checkMeasure = function(measure, targetPointDistanceSq, targetLineDistanceSq) {
       const beginToMouse = p5.Vector.sub(measure.begin, mouseVec);
       const mouseToEnd = p5.Vector.sub(mouseVec, measure.end);
       const beginToEnd = p5.Vector.sub(measure.begin, measure.end);
       var beginDistance = beginToMouse.magSq();
       var endDistance = mouseToEnd.magSq();
       const distanceToLine = pointToLineDistanceSq(mouseVec, measure.begin, measure.end, beginToEnd.magSq());
-      print(distanceToLine, beginDistance, endDistance);
-      targetDistanceSq = min(targetDistanceSq, nearestDistanceSq);
-      if (beginDistance <= targetDistanceSq || endDistance <= targetDistanceSq) {
-        if (beginDistance <= targetDistanceSq) {
+      targetPointDistanceSq = min(targetPointDistanceSq, nearestDistanceSq);
+      if (beginDistance <= targetPointDistanceSq || endDistance <= targetPointDistanceSq) {
+        if (beginDistance <= targetPointDistanceSq) {
           nearestDistanceSq = beginDistance;
-          nearestMeasurement = measure;
-          nearestEndpoints = [measure.begin];
+          nearestEndpointMeasurement = measure;
+          nearestEndpoint = [measure.begin];
         } else {
           nearestDistanceSq = endDistance;
-          nearestMeasurement = measure;
-          nearestEndpoints = [measure.end];
+          nearestEndpointMeasurement = measure;
+          nearestEndpoint = [measure.end];
         }
-      } else if (distanceToLine < targetDistanceSq
+      } else if (distanceToLine < min(targetLineDistanceSq, nearestDistanceSq)
           && beginToMouse.dot(beginToEnd) > 0 
           && mouseToEnd.dot(beginToEnd) > 0) {
         nearestDistanceSq = distanceToLine;
-        nearestMeasurement = measure;
-        nearestEndpoints = [measure.begin, measure.end];
+        nearestLineMeasurement = measure;
+        nearestLine = [measure.begin, measure.end];
       }
     }
-    const targetDistanceSq = 1300;
-    guiMeasureComposer.groups.forEach(group => {
-      checkMeasure(group.data.baseMeasure, targetDistanceSq);
-      group.data.measures.forEach(measure => checkMeasure(measure, targetDistanceSq));
-    })
-    guiMeasureComposer.viewMeasurement(nearestMeasurement);
-    draggedEndpoints = nearestEndpoints;
+    const targetPointDistanceSq = 120*generalSettings.lineWidth;
+    const targetLineDistanceSq = generalSettings.lineWidth*generalSettings.lineWidth;
+    guiMeasureComposer.forEachMeasure(
+      measure => checkMeasure(measure, targetPointDistanceSq, targetLineDistanceSq));
+    if (nearestEndpoint !== null) {
+      draggedEndpoints = nearestEndpoint;
+      guiMeasureComposer.viewMeasurement(nearestEndpointMeasurement);
+    } else {
+      draggedEndpoints = nearestLine;
+      guiMeasureComposer.viewMeasurement(nearestLineMeasurement);
+    }
   }
+}
+
+function keyPressed() {
+  if (keyCode == ALT) {
+    generalSettings.isAltButtonDown = true;
+  } else if (keyCode == CONTROL) {
+    generalSettings.isCtrlButtonDown = true;
+  } else if (keyCode == SHIFT) {
+    generalSettings.isShiftButtonDown = true;
+  }
+  print('Alt', generalSettings.isAltButtonDown,
+    'Ctrl', generalSettings.isCtrlButtonDown,
+    'Shift', generalSettings.isShiftButtonDown);
+}
+
+function keyReleased() {
+  if (keyCode == ALT) {
+    generalSettings.isAltButtonDown = false;
+  } else if (keyCode == CONTROL) {
+    generalSettings.isCtrlButtonDown = false;
+  } else if (keyCode == SHIFT) {
+    generalSettings.isShiftButtonDown = false;
+  }
+  print('Alt', generalSettings.isAltButtonDown,
+    'Ctrl', generalSettings.isCtrlButtonDown,
+    'Shift', generalSettings.isShiftButtonDown);
 }

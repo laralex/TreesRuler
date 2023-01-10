@@ -101,11 +101,15 @@
    },
    "guiAbsoluteLength": {
       "ENG": "Absolute length",
-      "RUS": "Длина абсолют."
+      "RUS": "Абсолютная"
    },
    "measuresFolder": {
       "ENG": "All measurements",
       "RUS": "Все замеры"
+   },
+   "selectedMeasureFolder": {
+      "ENG": "🔍 Selected measure.",
+      "RUS": "🔍 Выбранный замер"
    },
    "guiGroupColor": {
       "ENG": "Group color",
@@ -117,7 +121,7 @@
    },
    "guiGroupIsRendered": {
       "ENG": "Show/hide 👁️",
-      "RUS": "Вкл/Выкл 👁️"
+      "RUS": "Показать 👁️"
    },
    "guiLineWidth": {
       "ENG": "Lines width",
@@ -126,6 +130,10 @@
    "guiTextWidth": {
       "ENG": "Text size",
       "RUS": "Шрифт"
+   },
+   "guiTextFloatPrecision": {
+      "ENG": "Float precision",
+      "RUS": "Знаков после запятой"
    },
    "guiBaseAbsoluteValue": {
       "ENG": "Unit's absolute length",
