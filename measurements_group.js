@@ -117,8 +117,6 @@ class MeasureGroupGuiComposer {
          }
       });
      }
-
-     print('@', this.viewGuiObjects.denotationOverride);
    }
  
    updateViewGui(imageWidth, imageHeight) {
@@ -182,15 +180,27 @@ class MeasureGroupGuiComposer {
              type: 'button',
              label: getLocalized('guiRemoveMeasure'),
              action: () => {
-               if (!this.viewGuiObjects) { return; }
-               let measurementGroup = this.groups.find(group => group.groupFolder == this.viewGuiObjects[0].folder);
-               let measurementIndex = measurementGroup.measures.findIndex(measure => measure == this.viewMeasure);
-               measurementGroup.measures.splice(measurementIndex, 1);
-               // Object.values(this.).forEach(obj => tryCatch(
-               //   ()=>{ guifyInstance.Remove(obj); },
-               //   (e)=>{}
-               // ))
-               // TODO delete from arrays
+               if (!this.viewMeasure.guiObjects) { return; }
+               // let measurementGroup = this.groups.find(group => group.groupFolder == this.viewGuiObjects[0].folder);
+               // let measurementIndex = measurementGroup.measures.findIndex(measure => measure == this.viewMeasure);
+               // measurementGroup.measures.splice(measurementIndex, 1);
+               let measureGroup, measureIndex;
+               this.groups.forEach(group => {
+                  let foundIdx = group.data.measures.findIndex(measure => measure == this.viewMeasure);
+                  print(foundIdx);
+                  if (foundIdx >= 0) {
+                     measureGroup = group;
+                     measureIndex = foundIdx;
+                     return;
+                  }
+               })
+               measureGroup.data.measures.splice(measureIndex, 1);
+               Object.values(this.viewMeasure.guiObjects).forEach(obj => tryCatch(
+                 ()=>{ guifyInstance.Remove(obj); },
+                 (e)=>{}
+               ))
+               this.viewMeasurement(null);
+               // TODO delete from boundMap
              },
        }
      };
@@ -228,9 +238,9 @@ class MeasureGroupGuiComposer {
    }
  
    addMeasure(guifyInstance, groupFolder, groupBoundData, destinationGuiObjects, measureOverrideData) {
-     let index = groupBoundData.measures.length;
+     let index = groupBoundData.measuresAddedCounter;
      let defaults = {
-       begin: createVector(0, 0),
+        begin: createVector(0, 0),
        end: createVector(Math.random()*1000, Math.random()*1000),
        denotationOverride: null,
      };
@@ -239,11 +249,12 @@ class MeasureGroupGuiComposer {
      let measureGuiObjects = this._addMeasureGui({
        guifyInstance: guifyInstance, parentFolder: groupFolder,
        label: defaults.denotationOverride || `${getLocalized('measure')} ${index+1}`,
-       boundData: groupBoundData.measures[index],
+       boundData: groupBoundData.measures[groupBoundData.measures.length-1],
        groupFolder: groupFolder,
      });
      defaults.guiObjects = measureGuiObjects;
      destinationGuiObjects.push(...measureGuiObjects);
+     groupBoundData.measuresAddedCounter += 1;
    }
  
    bindMeasures(observerMeasure, isObserverBegin, isObserverEnd, sourceMeasure, isSourceBegin, isSourceEnd) {
@@ -292,6 +303,7 @@ class MeasureGroupGuiComposer {
          denotationOverride: null,
          guiObjects: null},
        baseAbsoluteLength: 1.0,
+       measuresAddedCounter: 0,
        measures: []
      };
      if (baseDefaultCoords !== undefined) {
