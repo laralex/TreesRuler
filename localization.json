@@ -84,8 +84,8 @@
       "RUS": "➕ Добавить группу измерений"
    },
    "guiGroupDenotation": {
-      "ENG": "Denotation",
-      "RUS": "Обозначение"
+      "ENG": "Group Denotation",
+      "RUS": "Обозначение группы"
    },
    "guiNewMeasure": {
       "ENG": "➕ New measurement",
@@ -143,6 +143,22 @@
       "ENG": "New group name",
       "RUS": "Новое имя"
    },
+   "guiLoadMeasurementsPreset": {
+      "ENG": "Load measurements preset",
+      "RUS": "Поставить шаблонные замеры"
+   },
+   "heightMeasurementsGroup": {
+      "ENG": "Height - H",
+      "RUS": "Высота - H"
+   },
+   "crownDiameterMeasurementsGroup": {
+      "ENG": "Crown Diameter - D",
+      "RUS": "Диаметр кроны - D"
+   },
+   "truckDiameterMeasurementsGroup": {
+      "ENG": "Trunk Diameter - d",
+      "RUS": "Диаметр ствола - d"
+   },
    "guiSelectedMeasure": {
       "ENG": "🔍 Selected measure.",
       "RUS": "🔍 Выбранный замер"
@@ -152,16 +168,20 @@
       "RUS": "Группа"
    },
    "measure": {
-      "ENG": "🔎 Measure.",
-      "RUS": "🔎 Замер"
+      "ENG": "Measure.",
+      "RUS": "Замер"
    },
    "baseMeasurePrefix": {
-      "ENG": "🔎 Measure. ",
-      "RUS": "🔎 Замер "
+      "ENG": "Measure. ",
+      "RUS": "Замер "
    },
    "baseMeasureSuffix": {
       "ENG": " (Unit)",
       "RUS": " (Базисный)"
+   },
+   "measureDenotation": {
+      "ENG": "Denotation",
+      "RUS": "Обозначение"
    },
    "beginPointX": {
       "ENG": "← Begin X",

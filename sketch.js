@@ -1,15 +1,25 @@
-//'use strict';
+'use strict';
 
-let img;
-let imgEdges;
-let localization;
-let gui;
-let font;
-let guiMeasureComposer;
-var imgView;
-var draggedEndpoints;
-var mouseIsOverGui;
+// loaded once, not expected to change
+const assets = new function() {
+  this.font = null;
+  this.localization = null;
+}();
 
+// updated from application actions (keyboard, or business logic)
+let applicationGlobalState = new function() {
+  this.nextGroupName = null;
+  this.isCtrlButtonDown = false;
+  this.isAltButtonDown = false;
+  this.isShiftButtonDown = false;
+  this.draggedEndpoints = null;
+  this.imgView = null;
+  this.measurementsGuiComposer = null;
+  this.gui = null;
+  this.loadedImage;
+}();
+
+// bound to be visualized in GUI, and receiving new values from GUI
 let generalSettings = new function() {
   this.crosshairEnabled = true;
   this.language = 'Russian';
@@ -21,16 +31,7 @@ let generalSettings = new function() {
   this.guiWidth = 300;
   this.guiTheme = 'yorha';
   this.guiAskUnsaved = false;
-  this.nextGroupName = null;
-  this.isCtrlButtonDown = false;
-  this.isAltButtonDown = false;
-  this.isShiftButtonDown = false;
-  this.measurementsDrawEnabled = true;
 }();
-
-function openImageFiles(){
-   document.getElementById('file-input').click()
-}
 
 let crosshairSettings = new function() {
   this.crosshairEnabled = true;
@@ -40,13 +41,7 @@ let crosshairSettings = new function() {
   this.invertColor = true;
 }();
 
-// let edgeDetectionSettings = new function() {
-//   this.edgeDetectionEnabled = false;
-//   this.edgeDetectionThreshold = 0;
-//   this.edgeDetectionAmplification = 1;
-// }();
-
-let zoomSettings = new function() {
+let imageViewSettings = new function() {
   this.panX = 0;
   this.panY = 0;
   this.zoom = 1;
@@ -55,346 +50,44 @@ let zoomSettings = new function() {
   this.zoomSensitivity = 0.0005;
 }();
 
-let imageInfo = new function() {
-  this.imageSizeStr = "";
-}();
-
-function getLocalized(key) {
-  if (key in localization) {
-    return localization[key][generalSettings.languageGuiToId[generalSettings.language]];
+function getLocalized(key, localizationObj=assets.localization) {
+  if (key in localizationObj) {
+    return localizationObj[key][generalSettings.languageGuiToId[generalSettings.language]];
   }
   console.warn(key, ' missing localization');
   return key;
 }
 
+function pointToLineDistanceSq(pointVec, beginVec, endVec, lineMagSq) {
+  if (lineMagSq === undefined) { // optional precomputed line magnitude
+    lineMagSq = p5.Vector.sub(beginVec, endVec).magSq();
+  }
+  const numeratorSqr = ((endVec.x - beginVec.x)*(beginVec.y - pointVec.y) - (beginVec.x - pointVec.x)*(endVec.y - beginVec.y));
+  return numeratorSqr*numeratorSqr/ lineMagSq;
+}
+
 class ImageAABBView {
-  constructor(imageWidth, imageHeight) {
-    this.imageWidth = imageWidth;
-    this.imageHeight = imageHeight;
-  }
-
-  toScreenBbox(screenWidth, screenHeight, zoom, panX, panY) {
-    let width = this.imageWidth*zoom;
-    let height = this.imageHeight*zoom;
-    return {
-      left: screenWidth/2-width/2 - panX*width,
-      width: width,
-      top: screenHeight/2-height/2 - panY*height,
-      height: height,
-    }
-  }
-}
-
-class MeasureGroupGuiComposer {
-  static groupsDefaults = [
-    { color: '#ff5e5e', denotation: 'a' },
-    { color: '#fda703', denotation: 'b' },
-    { color: '#0cff03', denotation: 'c' },
-    { color: '#03b4ff', denotation: 'd' },
-    { color: '#ff5ce4', denotation: 'e' },
-    { color: '#ff0000', denotation: 'A' },
-    { color: '#00ffff', denotation: 'B' },
-    { color: '#0000ff', denotation: 'C' },
-    { color: '#aaaaaa', denotation: 'D' },
-    { color: '#ffffff', denotation: 'E' },
-  ];
-
   constructor() {
-    this.groups = [];
-    this.nextDefaultIndex = 0;
-    this.viewGuiObjects = {};
-    this.viewMeasure = null;
-    this.dummyVariable = null;
-    generalSettings.nextGroupName = getLocalized('defaultGroupName')+0;
+    this.screenBbox = null;
   }
 
-  getViewedMeasurement() {
-    return this.viewMeasure;
+  getScreenBbox() {
+    return this.screenBbox
   }
-
-  viewGuiSetEnabled(isEnabled){
-    Object.values(this.viewGuiObjects).forEach(guiObj => guiObj.SetEnabled(isEnabled));
-  }
-
-  viewMeasurement(measurementBoundData) {
-    this.viewMeasure = measurementBoundData;
-    print('Selected measurement');
-
-    if (measurementBoundData === null) {
-      this.viewGuiSetEnabled(false);
-      return;
+  updateScreenBbox(imageWidth, imageHeight, screenWidth, screenHeight, zoom, panX, panY) {
+    let bboxWidth = imageWidth*zoom;
+    let bboxHeight = imageHeight*zoom;
+    this.screenBbox = {
+      left: screenWidth/2-bboxWidth/2 - panX*bboxWidth,
+      width: bboxWidth,
+      top: screenHeight/2-bboxHeight/2 - panY*bboxHeight,
+      height: bboxHeight,
     }
-    
-    this.viewGuiSetEnabled(true);
-    const boundMap = {
-      x0: {object: measurementBoundData.begin, property: 'x'},
-      y0: {object: measurementBoundData.begin, property: 'y'},
-      x1: {object: measurementBoundData.end, property: 'x'},
-      y1: {object: measurementBoundData.end, property: 'y'},
-      relativeLength: {object: measurementBoundData, property: 'relativeLength'},
-      absoluteLength: {object: measurementBoundData, property: 'absoluteLength'},
-    }
-    for(const [key, mapping] of Object.entries(boundMap)) {
-      this.viewGuiObjects[key].binding.object = mapping.object;
-      this.viewGuiObjects[key].binding.property = mapping.property;
-    }
-  }
-
-  updateViewGui(imageWidth, imageHeight) {
-    this.viewGuiObjects.x0.max = this.viewGuiObjects.x0.maxPos = this.viewGuiObjects.x0.input.max = imageWidth;
-    this.viewGuiObjects.x1.max = this.viewGuiObjects.x1.maxPos = this.viewGuiObjects.x1.input.max = imageWidth;
-    this.viewGuiObjects.y0.max = this.viewGuiObjects.y0.maxPos = this.viewGuiObjects.y0.input.max = imageHeight;
-    this.viewGuiObjects.y1.max = this.viewGuiObjects.y1.maxPos = this.viewGuiObjects.y1.input.max = imageHeight;
-  }
-
-  addViewGui(gui, viewFolder, imageWidth, imageHeight) {
-    const definitions = {
-      label: {
-        type: 'display',
-        label: '',
-        initial: getLocalized('guiSelectedMeasure'),
-      },
-      x0 : {
-        type: 'range',
-        label: getLocalized('beginPointX'),
-        min: 0, max: imageWidth, step: 1,
-        object: this, property: 'dummyVariable',
-        onChange: (data) => {},
-        onInitialize: (data) => {},
-      },
-      y0 : {
-        type: 'range',
-        label: getLocalized('beginPointY'),
-        min: 0, max: imageHeight, step: 1,
-        object: this, property: 'dummyVariable'
-      },
-      x1 : {
-        type: 'range',
-        label: getLocalized('endPointX'),
-        min: 0, max: imageWidth, step: 1,
-        object: this, property: 'dummyVariable'
-      },
-      y1 : {
-        type: 'range',
-        label: getLocalized('endPointY'),
-        min: 0, max: imageHeight, step: 1,
-        object: this, property: 'dummyVariable'
-      },
-      relativeLength : {
-        type: 'display',
-        label: getLocalized('guiRelativeLength'),
-        object: this, property: 'dummyVariable'
-      },
-      absoluteLength : {
-        type: 'display',
-        label: getLocalized('guiAbsoluteLength'),
-        object: this, property: 'dummyVariable'
-      },
-      removeButton : {
-            type: 'button',
-            label: getLocalized('guiRemoveMeasure'),
-            action: () => {
-              if (this.viewMeasureGuiObjects === null) { return; }
-              Object.values(this.viewGuiObjects).forEach(obj => tryCatch(
-                ()=>gui.Remove(obj),
-                (e)=>{}
-              ))
-              // TODO delete from arrays
-            },
-      }
-    };
-    for (const [key, definition] of Object.entries(definitions)) {
-      let guiObj = gui.Register(definition, { folder: viewFolder });
-      this.viewGuiObjects[key] = guiObj;
-    }
-    this.viewGuiSetEnabled(false);
-  }
-
-  _newMeasure({gui=null, parentFolder=null, newFolderName=null, boundData=null}) {
-    let definitions = [
-      {
-        type: 'button',
-        label: newFolderName,
-        folder: parentFolder,
-        action: () => {
-          this.viewMeasurement(boundData);
-        }
-      },
-    ];
-    let objects = [];
-    for (let definition of definitions) {
-      objects.push(gui.Register(definition));
-    }
-    return objects;
-  }
-
-  // _setGroupDenotation(groupFolder, newDenotation) {
-  //   const group = this.groups.find((group) => group.groupFolder == groupFolder);
-  //   for (element of group.guiObjects) {
-  //     if (element.classList.contains('baseMeasure')) {
-        
-  //     } else if (element.classList.contains('measure')) {
-
-  //     }
-  //   }
-  // }
-  _addFloatNoSlider(gui, definition) {
-    let obj = gui.Register(definition);
-    obj.container.querySelectorAll('.guify-value-input').forEach(
-      el => { el.style.width = "56%"; }
-    );
-    return obj;
-  }
-
-  newGroup(gui, parentFolder) {
-    let uniqueSpaces = ' '.repeat(this.groups.length);
-    let groupFolder = generalSettings.nextGroupName;
-    generalSettings.nextGroupName = generalSettings.nextGroupName.match(/(.*?)(\d*)$/)[1] + (this.groups.length+1);
-    let groupFolderObj = gui.Register({
-      type: 'folder',
-      label: groupFolder,
-      folder: parentFolder,
-      open: false
-    });
-    let guiObjects = [groupFolderObj];
-    let defaults;
-    if (this.nextDefaultIndex < this.constructor.groupsDefaults.length) {
-      defaults = this.constructor.groupsDefaults[this.nextDefaultIndex];
-      ++this.nextDefaultIndex;
-    } else {
-      const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16);
-      const denotation = String.fromCharCode('A'.charCodeAt(0) + this.groups.length);
-      defaults = { color: randomColor, denotation: denotation }
-    }
-    let groupBoundData = {
-      ...defaults,
-      opacity: 1.0,
-      isRendered: true,
-      baseMeasure: {
-        begin: createVector(Math.random()*1000, Math.random()*1000),
-        end: createVector(Math.random()*1000, Math.random()*1000),
-        guiObjects: null},
-      baseAbsoluteLength: 1.0,
-      measures: []
-    };
-    guiObjects.push(gui.Register({
-      type: 'button',
-      label: getLocalized('guiRemoveGroup'),
-      folder: groupFolder,
-      action: () => {
-        if (!generalSettings.guiAskUnsaved || this.groups.length == 1 || confirm(getLocalized('removeGroupDialog') + ' ' + groupFolder)) {
-          this.removeGroup(gui, groupFolder);
-        } else {
-          print('Cancel removing of group');
-        }
-      }
-    }));
-    guiObjects.push(gui.Register({
-      type: 'checkbox',
-      label: getLocalized('guiGroupIsRendered'),
-      property: 'isRendered',
-      object: groupBoundData, folder: groupFolder,
-    }));
-    guiObjects.push(gui.Register({
-        type: 'color',
-        label: getLocalized('guiGroupColor'),
-        format: 'hex',
-        property: 'color',
-        object: groupBoundData, folder: groupFolder
-    }));
-    // guiObjects.push(gui.Register({
-    //     type: 'range',
-    //     label: getLocalized('guiGroupColorOpacity'),
-    //     min: 0.0, max: 1.0, step:0.05,
-    //     property: 'opacity',
-    //     object: groupBoundData, folder: groupFolder,
-    // }));
-
-    guiObjects.push(gui.Register({
-        type: 'text',
-        label: getLocalized('guiGroupDenotation'),
-        property: 'denotation',
-        object: groupBoundData, folder: groupFolder,
-    }));
-
-    guiObjects.push(this._addFloatNoSlider(gui, {
-      type: 'range',
-      label: getLocalized('guiBaseAbsoluteValue'),
-      min: 1e-3, max: 1e6, step:1e-6, precision: 20,
-      property: 'baseAbsoluteLength',
-      object: groupBoundData, folder: groupFolder,
-    }));
-
-    guiObjects.push(gui.Register({
-      type: 'button',
-      label: getLocalized('guiNewMeasure'),
-      folder: groupFolder,
-      action: () => {
-        let index = groupBoundData.measures.length;
-        groupBoundData.measures.push({
-          begin: createVector(0, 0),
-          end: createVector(Math.random()*1000, Math.random()*1000),
-          guiObjects: null});
-        let measureGuiObjects = this._newMeasure({
-          gui: gui, parentFolder: groupFolder,
-          newFolderName: `${getLocalized('measure')} ${index+1}${uniqueSpaces}`,
-          boundData: groupBoundData.measures[index],
-        });
-        groupBoundData.measures.guiObjects = measureGuiObjects;
-        guiObjects.push(...measureGuiObjects);
-      }
-    }));
-    const baseGuiObjects = this._newMeasure({
-      gui: gui, parentFolder: groupFolder,
-      newFolderName: `${getLocalized('baseMeasurePrefix')} 0 ${getLocalized('baseMeasureSuffix')}${uniqueSpaces}`,
-      boundData: groupBoundData.baseMeasure,
-    });
-    guiObjects.push(...baseGuiObjects);
-    groupBoundData.baseMeasure.guiObjects = baseGuiObjects;
-    this.groups.push({guiObjects: guiObjects, data: groupBoundData, groupFolder: groupFolder});
-  }
-
-  _removeGuiObjects(gui, guiObjects) {
-    guiObjects.forEach(
-      obj => tryCatch(
-        () => gui.Remove(obj),
-        (e) => {}
-      )
-    )
-  }
-  removeGroup(gui, groupFolder) {
-    let groupIndex = this.groups.findIndex(group => group.groupFolder == groupFolder);
-    this._removeGuiObjects(gui, this.groups[groupIndex].guiObjects);
-    this.groups.splice(groupIndex, 1)
-  }
-  removeAllGroups(gui) {
-    this.groups.forEach(group => this.removeGroup(gui, group.groupFolder));
-  }
-
-  forEachMeasure(func) {
-    this.groups.forEach(group => {
-      func(group.data.baseMeasure);
-      group.data.measures.forEach(measure => {
-        func(measure);
-      })
-    });
-  }
-
-  forEachPoint(func) {
-    this.forEachMeasure(measure => {
-      func(measure.begin);
-      func(measure.end);
-    })
   }
 }
 
-function tryCatch(func, failFunc) {
-  try { return func() }
-  catch(e) { return failFunc(e) }
-}
-
-function setupGui(gui) {
-  if (gui !== undefined) {
+function setupGui(guifyInstance) {
+  if (guifyInstance !== undefined) {
     let guifyContainers = document.getElementsByClassName('guify-container');
     for (let element of guifyContainers) {
         element.remove();
@@ -402,7 +95,7 @@ function setupGui(gui) {
     print('Deleted GUI instances');
   }
 
-  gui = new guify({
+  guifyInstance = new guify({
     title:  getLocalized('title'),
     theme: generalSettings.guiTheme, // dark, light, yorha, or theme object
     align: 'right', // left, right
@@ -414,23 +107,23 @@ function setupGui(gui) {
     opacity: generalSettings.guiOpacity,
     open: true
   });
-  gui.panel.container.mouseIsOver = false;
-  gui.panel.container.onmouseover = function()   {
+  guifyInstance.panel.container.mouseIsOver = false;
+  guifyInstance.panel.container.onmouseover = function()   {
     this.mouseIsOverGui = true;
   };
-  gui.panel.container.onmouseleave = function()   {
+  guifyInstance.panel.container.onmouseleave = function()   {
     this.mouseIsOverGui = false;
   };
   document.title = getLocalized('title');
-  gui.Register([
+  guifyInstance.Register([
     {
       type: 'select',
       options: ['Russian', 'English'],
       label: getLocalized('language'),
       object: generalSettings,
       property: 'language',
-      onChange: (data) => {
-        setupGui(gui);
+      onChange: () => {
+        setupGui(guifyInstance);
       },
     },
     {
@@ -440,49 +133,32 @@ function setupGui(gui) {
       object: generalSettings,
     },
   ]);
-  let guiFile = gui.Register({
+  let guiFile = guifyInstance.Register({
       type: 'file',
       label: getLocalized('openImageFiles'),
       object: this,
       onChange: (data) => {
         if (!generalSettings.guiAskUnsaved || confirm(getLocalized('loosingUnsavedDialog'))) {
-          myLoadImage(data);
+          loadTreeImage(data);
         } else {
           print('Cancel openning of file');
         }
       }
   });
   guiFile.container.lastChild.innerText = "";
-  gui.Register({
-      type: 'display',
-      label: getLocalized('imageSize'),
-      object: imageInfo, property: 'imageSizeStr',
-      listenMode: 'change',
+  guifyInstance.Register({
+      type: 'button',
+      label: getLocalized('guiLoadMeasurementsPreset'),
+      action: () => loadMeasurementsPreset(guifyInstance,
+        applicationGlobalState.measurementsGuiComposer,
+        applicationGlobalState.loadedImage.width,
+        applicationGlobalState.loadedImage.height)
   });
-  gui.Register([
-    {
-      type: 'folder',
-      label: getLocalized('guiFolder'),
-      open: false
-    },
-
-    {
-      type: 'folder',
-      label: getLocalized('crosshairFolder'),
-      open: false
-    },
-
-    {
-      type: 'folder',
-      label: getLocalized('zoomFolder'),
-      open: false
-    },
-
-    {
-      type: 'folder',
-      label: getLocalized('measuresFolder'),
-      open: true
-    },
+  guifyInstance.Register([
+    { type: 'folder', label: getLocalized('guiFolder'), open: false },
+    { type: 'folder', label: getLocalized('crosshairFolder'), open: false },
+    { type: 'folder', label: getLocalized('zoomFolder'), open: false },
+    { type: 'folder', label: getLocalized('measuresFolder'), open: true },
   ]);
 
   const guiWidthInitFunc = function(data) {
@@ -492,7 +168,7 @@ function setupGui(gui) {
   };
   guiWidthInitFunc(generalSettings.guiWidth);
 
-  gui.Register([
+  guifyInstance.Register([
     {
       type: 'range',
       label: getLocalized('guiOpacity'),
@@ -520,71 +196,50 @@ function setupGui(gui) {
       object: generalSettings,
       property: 'guiTheme',
       onChange: (data) => {
-        setupGui(gui);
+        setupGui(guifyInstance);
       }
     },
   ], { object: generalSettings, folder: getLocalized('guiFolder') });
 
-  gui.Register([
+  guifyInstance.Register([
+    { type: 'button',label: getLocalized('zoomReset'), action: resetZoom },
     {
-      type: 'button',
-      label: getLocalized('zoomReset'),
-      action: resetZoom
+      type: 'range', label: getLocalized('zoomX'),
+      property: 'panX', min: -0.5, max: 0.5, step: 0.01,
     },
     {
-      type: 'range',
-      label: getLocalized('zoomX'),
-      min: -0.5, max: 0.5, step: 0.01,
-      property: 'panX'
+      type: 'range',label: getLocalized('zoomY'),
+      property: 'panY', min: -0.5, max: 0.5, step: 0.01,
     },
     {
-      type: 'range',
-      label: getLocalized('zoomY'),
-      min: -0.5, max: 0.5, step: 0.01,
-      property: 'panY'
+      type: 'range', label: getLocalized('zoomLevel'),
+      property: 'zoom', scale: 'log',
+      min: imageViewSettings.zoomMin, max: imageViewSettings.zoomMax,
     },
-    {
-      type: 'range',
-      label: getLocalized('zoomLevel'),
-      scale: 'log',
-      min: zoomSettings.zoomMin, max: zoomSettings.zoomMax,
-      property: 'zoom'
-    },
-  ], { object: zoomSettings, folder: getLocalized('zoomFolder') });
+  ], { object: imageViewSettings, folder: getLocalized('zoomFolder') });
 
-  gui.Register([
+  guifyInstance.Register([
     {
-      type: 'checkbox',
-      label: getLocalized('crosshairEnabled'),
+      type: 'checkbox', label: getLocalized('crosshairEnabled'),
       property: 'crosshairEnabled',
     },
     {
-      type: 'range',
-      label: getLocalized('crosshairRadius'),
-      min: 0, max: 50, step: 1,
-      property: 'crosshairRadius'
+      type: 'range', label: getLocalized('crosshairRadius'),
+      property: 'crosshairRadius', min: 0, max: 50, step: 1,
     },
 
     {
-      type: 'range',
-      label: getLocalized('crosshairLinesEnd'),
-      min: 1, max: 50, step: 1,
-      property: 'crosshairLinesEnd'
+      type: 'range', label: getLocalized('crosshairLinesEnd'),
+      property: 'crosshairLinesEnd', min: 1, max: 50, step: 1,
     },
     {
-      type: 'color',
-      label: getLocalized('crosshairColor'),
-      format: 'hex',
-      property: 'crosshairColor'
+      type: 'color', label: getLocalized('crosshairColor'),
+      property: 'crosshairColor', format: 'hex',
     },
-    {
-      type: 'checkbox',
-      label: getLocalized('crosshairInvertColor'),
-      property: 'invertColor',
-    },
+    { type: 'checkbox', label: getLocalized('crosshairInvertColor'), property: 'invertColor', },
   ], { object: crosshairSettings, folder: getLocalized('crosshairFolder') });
 
-  gui.Register({
+  guifyInstance.Register({
     type: 'range',
     label: getLocalized('guiLineWidth'),
     folder: getLocalized('measuresFolder'),
@@ -593,7 +248,7 @@ function setupGui(gui) {
     property: 'lineWidth',
   });
 
-  gui.Register({
+  guifyInstance.Register({
     type: 'range',
     label: getLocalized('guiTextWidth'),
     folder: getLocalized('measuresFolder'),
@@ -601,7 +256,7 @@ function setupGui(gui) {
     object: generalSettings,
     property: 'textWidth',
   });
-  gui.Register({
+  guifyInstance.Register({
     type: 'range',
     label: getLocalized('guiTextFloatPrecision'),
     folder: getLocalized('measuresFolder'),
@@ -610,27 +265,30 @@ function setupGui(gui) {
     property: 'textFloatPrecision',
   });
 
-  gui.Register({
+  guifyInstance.Register({
     type: 'text',
     listenMode: 'change',
     label: getLocalized('guiNewGroupName'),
     folder: getLocalized('measuresFolder'),
     property: 'nextGroupName',
-    object: generalSettings,
+    object: applicationGlobalState,
   });
 
 
-  gui.Register({
+  guifyInstance.Register({
     type: 'button',
     label: getLocalized('guiNewGroup'),
     folder: getLocalized('measuresFolder'),
     action: () => {
-      guiMeasureComposer.newGroup(gui, getLocalized('measuresFolder'));
+      let groupFolder = applicationGlobalState.nextGroupName;
+      let nextNameMatch = applicationGlobalState.nextGroupName.match(/(.*?)(\d*)$/);
+      applicationGlobalState.nextGroupName = nextNameMatch[1] + (parseInt(nextNameMatch[2])+1 || 1);
+      applicationGlobalState.measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'), groupFolder);
     }
   });
 
-  guiMeasureComposer = new MeasureGroupGuiComposer();
-  guiMeasureComposer.addViewGui(gui, null, 1, 1);
+  applicationGlobalState.measurementsGuiComposer = new MeasureGroupGuiComposer();
+  applicationGlobalState.measurementsGuiComposer.addViewGui(guifyInstance, null, 1, 1);
 
   let guifyBarButtons = document.getElementsByClassName('guify-bar-button');
   for (let element of guifyBarButtons) {
@@ -639,95 +297,45 @@ function setupGui(gui) {
       }
   }
 
-  return gui;
+  return guifyInstance;
 }
 
-function detectEdges(source, threshold, amplify) {
-  // Learning Processing
-  // Daniel Shiffman
-  // http://www.learningprocessing.com
 
-  let destination = createImage(source.width, source.height);
 
-  // Temporary-ish fix for retina machines
-  let oldPixelDensity = pixelDensity();
-  pixelDensity(1);
-
-  // We are going to look at both image's pixels
-  source.loadPixels();
-  destination.loadPixels();
-  
-  // Since we are looking at left neighbors
-  // We skip the first column
-  for (var x = 1; x < source.width; x++ ) {
-    for (var y = 0; y < source.height; y++ ) {
-      var loc = (x + y * source.width) * 4;
-      // The functions red(), green(), and blue() pull out the three color components from a pixel.
-      var r = source.pixels[loc   ]; 
-      var g = source.pixels[loc + 1];
-      var b = source.pixels[loc + 2];
-      
-      // Pixel to the left location and color
-      var leftLoc = ((x - 1) + y * source.width) * 4;
-      var rleft = source.pixels[leftLoc   ]; 
-      var gleft = source.pixels[leftLoc + 1];
-      var bleft = source.pixels[leftLoc + 2];      
-      // New color is difference between pixel and left neighbor
-      destination.pixels[loc    ] = amplify*(max(abs(r - rleft) - threshold, 0));
-      destination.pixels[loc + 1] = amplify*(max(abs(g - gleft) - threshold, 0));
-      destination.pixels[loc + 2] = amplify*(max(abs(b - bleft) - threshold, 0));
-      destination.pixels[loc + 3] = 255; // Always have to set alpha
-    }
-  }
-  
-  // We changed the pixels in destination
-  destination.updatePixels();
-
-  pixelDensity(oldPixelDensity);
-  return destination;
-}
-function resetZoom() {
-  zoomSettings.panX = 0;
-  zoomSettings.panY = 0;
-  zoomSettings.zoom = min(windowHeight / img.height, windowWidth / img.width);
-}
-
-function mouseWheel(event) {
-  var zoomDelta = -zoomSettings.zoomSensitivity*exp(zoomSettings.zoom)*event.delta;
-  zoomDelta = constrain(zoomDelta, -zoomSettings.zoom/5, zoomSettings.zoom/5);
-  zoomSettings.zoom += zoomDelta;
-  zoomSettings.zoom = constrain(zoomSettings.zoom, zoomSettings.zoomMin, zoomSettings.zoomMax);
-  return false;
-}
-
-function myLoadImage(uri) {
+function loadTreeImage(uri) {
   loadImage(uri, newImg => {
-    img = newImg;
-    imgView = new ImageAABBView(img.width, img.height);
-    imageInfo.imageSizeStr = `${img.width} x ${img.height}`;
+    applicationGlobalState.loadedImage = newImg;
     resetZoom();
-    if (guiMeasureComposer !== undefined) {
-      guiMeasureComposer.removeAllGroups(gui);
+    if (applicationGlobalState.measurementsGuiComposer) {
+      applicationGlobalState.nextGroupName = getLocalized('defaultGroupName')+0;
+      applicationGlobalState.measurementsGuiComposer.removeAllGroups(applicationGlobalState.gui);
+      applicationGlobalState.measurementsGuiComposer.updateViewGui(
+        applicationGlobalState.loadedImage.width, 
+        applicationGlobalState.loadedImage.height);
     }
-    guiMeasureComposer.updateViewGui(img.width, img.height);
-    // imgEdges = detectEdges(img,
-    //   edgeDetectionSettings.edgeDetectionThreshold,
-    //   edgeDetectionSettings.edgeDetectionAmplification);
     print('Loaded image', uri.slice(0, 100));
   });
-  
+}
+
+function resetZoom() {
+  imageViewSettings.panX = 0;
+  imageViewSettings.panY = 0;
+  imageViewSettings.zoom = min(
+    windowHeight / applicationGlobalState.loadedImage.height,
+    windowWidth  / applicationGlobalState.loadedImage.width);
 }
 
 function preload() {
-  localization = loadJSON('./localization.json');
-  font = loadFont('./assets/fonts/inconsolata/Inconsolata-Regular.ttf');
+  assets.localization = loadJSON('./localization.json');
+  assets.font = loadFont('./assets/fonts/inconsolata/Inconsolata-Regular.ttf');
+  applicationGlobalState.imgView = new ImageAABBView();
 }
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   windowResized();
-  gui = setupGui(gui);
-  myLoadImage('./assets/example_trees/000006.jpg');
+  applicationGlobalState.gui = setupGui(applicationGlobalState.gui);
+  loadTreeImage('./assets/example_trees/000001.jpg');
 }
 
 function drawCrosshair({x=0, y=0, beginOffset=0, endOffset=0, colorHexStr="#00000000", blendingMode=BLEND}) {
@@ -750,7 +358,7 @@ function drawCrosshair({x=0, y=0, beginOffset=0, endOffset=0, colorHexStr="#0000
   pop();
 }
 
-function drawMeasurement(lineColor, denotation, measurementData, panX, panY,
+function drawMeasurement(lineColor, groupDenotation, measurementData, panX, panY,
   zoom, markWeight, textWeight, floatPrecision, isBaseMeasurement) {
   const beginX = measurementData.begin.x*zoom + panX,
         beginY = measurementData.begin.y*zoom + panY,
@@ -788,7 +396,7 @@ function drawMeasurement(lineColor, denotation, measurementData, panX, panY,
   point(endX, endY);
 
   // textboxes color
-  if (measurementData == guiMeasureComposer.getViewedMeasurement()) {
+  if (measurementData == applicationGlobalState.measurementsGuiComposer.getViewedMeasurement()) {
     lineColor.setAlpha(175)
     fill(lineColor);
   } else {
@@ -797,7 +405,8 @@ function drawMeasurement(lineColor, denotation, measurementData, panX, panY,
 
   // draw measurements text
   textSize(textWeight);
-  var lengthText = denotation;
+  // print(measurementData.denotationOverride)
+  var lengthText = measurementData.denotationOverride || groupDenotation;
   if (!isBaseMeasurement) {
     lengthText += '=' + measurementData.relativeLength.toFixed(floatPrecision).toString();
   }
@@ -805,12 +414,11 @@ function drawMeasurement(lineColor, denotation, measurementData, panX, panY,
     lengthText = lengthText + ' (' + measurementData.absoluteLength.toFixed(floatPrecision) + ')';
   }
   strokeWeight(0);
-  // let textX = beginX + (endX-beginX)*0.5, textY = beginY + (endY-beginY)*0.5, textPadding = textWeight*0.2;
   let textX = endX + 15*zoom, textY = endY, textPadding = textWeight*0.2;
-  let bbox = font.textBounds(lengthText, textX, textY, textWeight);
+  let bbox = assets.font.textBounds(lengthText, textX, textY, textWeight);
   rect(bbox.x-textPadding, bbox.y, bbox.w + 2*textPadding, bbox.h);
   fill(0);
-  textFont(font);
+  textFont(assets.font);
   text(lengthText, textX, textY);
 
   pop();
@@ -820,10 +428,10 @@ function drawMeasurements(panX, panY, zoom) {
   push();
   const lineWeight = generalSettings.lineWidth*(log(zoom+1));
   const markWeight = lineWeight;
-  const textWeight = generalSettings.textWidth - zoom*(generalSettings.textWidth - 10)/zoomSettings.zoomMax;
+  const textWeight = generalSettings.textWidth - zoom*(generalSettings.textWidth - 10)/imageViewSettings.zoomMax;
   strokeCap(SQUARE);
   strokeWeight(lineWeight);
-  guiMeasureComposer.groups.forEach(group => {
+  applicationGlobalState.measurementsGuiComposer.groups.forEach(group => {
     if (!group.data.isRendered) {
       return;
     }
@@ -843,7 +451,7 @@ function drawMeasurements(panX, panY, zoom) {
 
 
 function updateMeasurementsLengths() {
-  guiMeasureComposer.groups.forEach(group => {
+  applicationGlobalState.measurementsGuiComposer.groups.forEach(group => {
     const base = group.data.baseMeasure;
     base.pixelLength = p5.Vector.sub(base.end, base.begin).mag();
     base.relativeLength = 1.0;
@@ -859,17 +467,18 @@ function updateMeasurementsLengths() {
 function draw() {
   clear();
   updateMeasurementsLengths();
-  if (imgView !== undefined) {
-    let zoomScreenBbox = imgView.toScreenBbox(
+  if (applicationGlobalState.loadedImage) {
+    applicationGlobalState.imgView.updateScreenBbox(
+      applicationGlobalState.loadedImage.width,
+      applicationGlobalState.loadedImage.height,
       windowWidth, windowHeight,
-      zoomSettings.zoom, zoomSettings.panX, zoomSettings.panY);
-    image(img,
-      zoomScreenBbox.left, zoomScreenBbox.top,
-      zoomScreenBbox.width, zoomScreenBbox.height);
-    // const panX = zoomSettings.panX * img.width / zoomSettings.zoom;
-    // const panY = zoomSettings.panY * img.height / zoomSettings.zoom;p
-    if (generalSettings.measurementsDrawEnabled) {
-      drawMeasurements(zoomScreenBbox.left, zoomScreenBbox.top, zoomSettings.zoom);
+      imageViewSettings.zoom, imageViewSettings.panX, imageViewSettings.panY);
+    let imgViewBbox = applicationGlobalState.imgView.getScreenBbox(); 
+    image(applicationGlobalState.loadedImage,
+      imgViewBbox.left, imgViewBbox.top,
+      imgViewBbox.width, imgViewBbox.height);
+    if (!applicationGlobalState.isCtrlButtonDown) {
+      drawMeasurements(imgViewBbox.left, imgViewBbox.top, imageViewSettings.zoom);
     }
   }
 
@@ -895,37 +504,29 @@ function draw() {
 }
 
 function windowResized() {
-  const css = getComputedStyle(canvas.parentElement),
-        mw = float(css.marginLeft) + float(css.marginRight),
-        mh = float(css.marginTop)  + float(css.marginBottom),
-        ww = float(css.width)  || windowWidth,
-        wh = float(css.height) || windowHeight,
-        w = ceil(ww - mw) | 0, h = ceil(wh - mh) | 0;
   print(`Resize ${windowWidth}, ${windowHeight}`)
   resizeCanvas(windowWidth, windowHeight);
 }
 
 function mouseDragged() {
-  if (gui.panel.container.mouseIsOverGui) {
+  if (applicationGlobalState.gui.panel.container.mouseIsOverGui) {
     print('Mouse over GUI');
     return;
   }
-  let zoomScreenBbox = imgView.toScreenBbox(
-    windowWidth, windowHeight,
-    zoomSettings.zoom, zoomSettings.panX, zoomSettings.panY);
+  let imgViewBbox = applicationGlobalState.imgView.getScreenBbox();
   if (mouseButton === RIGHT) {
-    zoomSettings.panX -= movedX/zoomScreenBbox.width;
-    zoomSettings.panY -= movedY/zoomScreenBbox.height;
+    imageViewSettings.panX -= movedX/imgViewBbox.width;
+    imageViewSettings.panY -= movedY/imgViewBbox.height;
   } else if (mouseButton === LEFT) {
-    if (draggedEndpoints) {
+    if (applicationGlobalState.draggedEndpoints) {
       let mouseVec = createVector(
-        (mouseX-zoomScreenBbox.left)/zoomSettings.zoom,
-        (mouseY-zoomScreenBbox.top)/zoomSettings.zoom);
-      var offsetToNearestX = -1e6, offsetToNearestY = -1e6, snapDistancePx = 10/zoomSettings.zoom;
-      if (draggedEndpoints.length == 1) {
-        draggedPoint = draggedEndpoints[0];
-        draggedPoint.x = mouseVec.x; // movedX/zoomSettings.zoom;
-        draggedPoint.y = mouseVec.y; // movedY/zoomSettings.zoom;
+        (mouseX-imgViewBbox.left)/imageViewSettings.zoom,
+        (mouseY-imgViewBbox.top)/imageViewSettings.zoom);
+      var offsetToNearestX = -1e6, offsetToNearestY = -1e6, snapDistancePx = 10/imageViewSettings.zoom;
+      if (applicationGlobalState.draggedEndpoints.length == 1) {
+        let draggedPoint = applicationGlobalState.draggedEndpoints[0];
+        draggedPoint.x = mouseVec.x;
+        draggedPoint.y = mouseVec.y;
         if (generalSettings.isAltButtonDown) { print('ALT'); return; } // no snapping
         const computeSnapping = function(otherPoint) {
           if (otherPoint == draggedPoint) {
@@ -938,10 +539,10 @@ function mouseDragged() {
             offsetToNearestY = otherPoint.y - mouseVec.y;
           }
         }
-        guiMeasureComposer.forEachPoint(computeSnapping);
+        applicationGlobalState.measurementsGuiComposer.forEachPoint(computeSnapping);
         // snap to image borders
         computeSnapping({x: 0, y: 0});
-        computeSnapping({x: img.width, y: img.height});
+        computeSnapping({x: applicationGlobalState.loadedImage.width, y: applicationGlobalState.loadedImage.height});
         if (abs(offsetToNearestX) < snapDistancePx) {
           draggedPoint.x = mouseVec.x + offsetToNearestX;
         } 
@@ -949,41 +550,38 @@ function mouseDragged() {
           draggedPoint.y = mouseVec.y + offsetToNearestY;
         }
       } else {
-        draggedEndpoints.forEach(draggedPoint => {
-          draggedPoint.x += movedX/zoomSettings.zoom;
-          draggedPoint.y += movedY/zoomSettings.zoom;
+        applicationGlobalState.draggedEndpoints.forEach(draggedPoint => {
+          draggedPoint.x += movedX/imageViewSettings.zoom;
+          draggedPoint.y += movedY/imageViewSettings.zoom;
         });
       }
     }
   }
 }
 
-function pointToLineDistanceSq(pointVec, beginVec, endVec, lineMagSq) {
-  if (lineMagSq === undefined) {
-    lineMagSq = p5.Vector.sub(beginVec, endVec).magSq();
-  }
-  const numeratorSqr = ((endVec.x - beginVec.x)*(beginVec.y - pointVec.y) - (beginVec.x - pointVec.x)*(endVec.y - beginVec.y));
-  return numeratorSqr*numeratorSqr/ lineMagSq;
+function mouseWheel(event) {
+  var zoomDelta = -imageViewSettings.zoomSensitivity*exp(imageViewSettings.zoom)*event.delta;
+  zoomDelta = constrain(zoomDelta, -imageViewSettings.zoom/5, imageViewSettings.zoom/5);
+  imageViewSettings.zoom += zoomDelta;
+  imageViewSettings.zoom = constrain(imageViewSettings.zoom, imageViewSettings.zoomMin, imageViewSettings.zoomMax);
+  return false;
 }
 
 function mousePressed() {
+  if (applicationGlobalState.gui.panel.container.mouseIsOverGui) {
+    print('Mouse over GUI');
+    return;
+  }
   if (mouseButton === LEFT) {
-    if (gui.panel.container.mouseIsOverGui) {
-      print('Mouse over GUI');
-      return;
-    }
-    let zoomScreenBbox = imgView.toScreenBbox(
-      windowWidth, windowHeight,
-      zoomSettings.zoom, zoomSettings.panX, zoomSettings.panY);
-
-    let mouseVec = createVector(mouseX-zoomScreenBbox.left, mouseY-zoomScreenBbox.top);
-    mouseVec.div(zoomSettings.zoom);
+    let imgViewBbox = applicationGlobalState.imgView.getScreenBbox();
+    let mouseVec = createVector(mouseX-imgViewBbox.left, mouseY-imgViewBbox.top);
+    mouseVec.div(imageViewSettings.zoom);
     var nearestDistanceSq = 1e6;
     var nearestEndpointMeasurement = null;
     var nearestEndpoint = null;
     var nearestLineMeasurement = null;
     var nearestLine = null;
-    const checkMeasure = function(measure, targetPointDistanceSq, targetLineDistanceSq) {
+    const checkNearestMeasure = function(measure, targetPointDistanceSq, targetLineDistanceSq) {
       const beginToMouse = p5.Vector.sub(measure.begin, mouseVec);
       const mouseToEnd = p5.Vector.sub(mouseVec, measure.end);
       const beginToEnd = p5.Vector.sub(measure.begin, measure.end);
@@ -1009,38 +607,36 @@ function mousePressed() {
         nearestLine = [measure.begin, measure.end];
       }
     }
-    const targetPointDistanceSq = 15*generalSettings.lineWidth/zoomSettings.zoom;
-    const targetLineDistanceSq = generalSettings.lineWidth*generalSettings.lineWidth/zoomSettings.zoom;
-    guiMeasureComposer.forEachMeasure(
-      measure => checkMeasure(measure, targetPointDistanceSq, targetLineDistanceSq));
+    const targetPointDistanceSq = 15*generalSettings.lineWidth/imageViewSettings.zoom;
+    const targetLineDistanceSq = generalSettings.lineWidth*generalSettings.lineWidth/imageViewSettings.zoom;
+    applicationGlobalState.measurementsGuiComposer.forEachMeasure(
+      measure => checkNearestMeasure(measure, targetPointDistanceSq, targetLineDistanceSq));
     if (nearestEndpoint !== null) {
-      draggedEndpoints = nearestEndpoint;
-      guiMeasureComposer.viewMeasurement(nearestEndpointMeasurement);
+      applicationGlobalState.draggedEndpoints = nearestEndpoint;
+      applicationGlobalState.measurementsGuiComposer.viewMeasurement(nearestEndpointMeasurement);
     } else {
-      draggedEndpoints = nearestLine;
-      guiMeasureComposer.viewMeasurement(nearestLineMeasurement);
+      applicationGlobalState.draggedEndpoints = nearestLine;
+      applicationGlobalState.measurementsGuiComposer.viewMeasurement(nearestLineMeasurement);
     }
   }
 }
 
 function keyPressed() {
   if (keyCode == ALT) {
-    generalSettings.isAltButtonDown = true;
+    applicationGlobalState.isAltButtonDown = true;
   } else if (keyCode == CONTROL) {
-    generalSettings.isCtrlButtonDown = true;
-    generalSettings.measurementsDrawEnabled = false;
+    applicationGlobalState.isCtrlButtonDown = true;
   } else if (keyCode == SHIFT) {
-    generalSettings.isShiftButtonDown = true;
+    applicationGlobalState.isShiftButtonDown = true;
   }
 }
 
 function keyReleased() {
   if (keyCode == ALT) {
-    generalSettings.isAltButtonDown = false;
+    applicationGlobalState.isAltButtonDown = false;
   } else if (keyCode == CONTROL) {
-    generalSettings.isCtrlButtonDown = false;
-    generalSettings.measurementsDrawEnabled = true;
+    applicationGlobalState.isCtrlButtonDown = false;
   } else if (keyCode == SHIFT) {
-    generalSettings.isShiftButtonDown = false;
+    applicationGlobalState.isShiftButtonDown = false;
   }
 }
