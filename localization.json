@@ -55,6 +55,10 @@
       "ENG": "Zoom settings",
       "RUS": "Настройки приближения"
    },
+   "settingsFolder": {
+      "ENG": "Settings",
+      "RUS": "Настройки"
+   },
    "guiFolder": {
       "ENG": "GUI settings",
       "RUS": "Настройки меню"
@@ -85,7 +89,7 @@
    },
    "guiGroupDenotation": {
       "ENG": "Group Denotation",
-      "RUS": "Обозначение группы"
+      "RUS": "Обозначение"
    },
    "guiNewMeasure": {
       "ENG": "➕ New measurement",
@@ -106,6 +110,10 @@
    "measuresFolder": {
       "ENG": "All measurements",
       "RUS": "Все замеры"
+   },
+   "lineFolder": {
+      "ENG": "Lines settings",
+      "RUS": "Настройки линий"
    },
    "selectedMeasureFolder": {
       "ENG": "🔍 Selected measure.",
@@ -137,7 +145,7 @@
    },
    "guiBaseAbsoluteValue": {
       "ENG": "Unit's absolute length",
-      "RUS": "Длина базиса абсолютн."
+      "RUS": "Абсолют. мера"
    },
    "guiNewGroupName": {
       "ENG": "New group name",

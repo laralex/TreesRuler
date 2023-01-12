@@ -28,9 +28,9 @@ let generalSettings = new function() {
   this.textWidth = 20;
   this.textFloatPrecision = 3;
   this.guiOpacity = 0.9;
-  this.guiWidth = 300;
+  this.guiWidth = 325;
   this.guiTheme = 'yorha';
-  this.guiAskUnsaved = false;
+  this.guiAskUnsaved = true;
 }();
 
 let crosshairSettings = new function() {
@@ -113,6 +113,7 @@ function setupGui(guifyInstance) {
   };
   guifyInstance.panel.container.onmouseleave = function()   {
     this.mouseIsOverGui = false;
+    print('No longer mouse on GUI;')
   };
   document.title = getLocalized('title');
   guifyInstance.Register([
@@ -149,15 +150,24 @@ function setupGui(guifyInstance) {
   guifyInstance.Register({
       type: 'button',
       label: getLocalized('guiLoadMeasurementsPreset'),
-      action: () => loadMeasurementsPreset(guifyInstance,
-        applicationGlobalState.measurementsGuiComposer,
-        applicationGlobalState.loadedImage.width,
-        applicationGlobalState.loadedImage.height)
+      action: () => {
+        if (applicationGlobalState.measurementsGuiComposer.groups.length > 0 
+            && generalSettings.guiAskUnsaved
+            && !confirm(getLocalized('loosingUnsavedDialog'))) {
+          return;
+        }
+        loadMeasurementsPreset(guifyInstance,
+          applicationGlobalState.measurementsGuiComposer,
+          applicationGlobalState.loadedImage.width,
+          applicationGlobalState.loadedImage.height)
+      }
   });
   guifyInstance.Register([
-    { type: 'folder', label: getLocalized('guiFolder'), open: false },
-    { type: 'folder', label: getLocalized('crosshairFolder'), open: false },
-    { type: 'folder', label: getLocalized('zoomFolder'), open: false },
+    { type: 'folder', label: getLocalized('settingsFolder'), open: false },
+    { type: 'folder', label: getLocalized('guiFolder'), folder: getLocalized('settingsFolder'), open: false },
+    { type: 'folder', label: getLocalized('crosshairFolder'),  folder: getLocalized('settingsFolder'), open: false },
+    { type: 'folder', label: getLocalized('zoomFolder'),  folder: getLocalized('settingsFolder'), open: false },
+    { type: 'folder', label: getLocalized('lineFolder'),  folder: getLocalized('settingsFolder'), open: false },
     { type: 'folder', label: getLocalized('measuresFolder'), open: true },
   ]);
 
@@ -182,7 +192,7 @@ function setupGui(guifyInstance) {
     {
       type: 'select',
       label: getLocalized('guiWidth'),
-      options: [300, 375, 600],
+      options: [250, 325, 375, 600],
       object: generalSettings,
       property: 'guiWidth',
       onInitialize: guiWidthInitFunc,
@@ -242,7 +252,7 @@ function setupGui(guifyInstance) {
   guifyInstance.Register({
     type: 'range',
     label: getLocalized('guiLineWidth'),
-    folder: getLocalized('measuresFolder'),
+    folder: getLocalized('lineFolder'),
     min: 1, max: 100, step: 1,
     object: generalSettings,
     property: 'lineWidth',
@@ -251,7 +261,7 @@ function setupGui(guifyInstance) {
   guifyInstance.Register({
     type: 'range',
     label: getLocalized('guiTextWidth'),
-    folder: getLocalized('measuresFolder'),
+    folder: getLocalized('lineFolder'),
     min: 1, max: 100, step: 1,
     object: generalSettings,
     property: 'textWidth',
@@ -259,7 +269,7 @@ function setupGui(guifyInstance) {
   guifyInstance.Register({
     type: 'range',
     label: getLocalized('guiTextFloatPrecision'),
-    folder: getLocalized('measuresFolder'),
+    folder: getLocalized('lineFolder'),
     min: 1, max: 25, step: 1,
     object: generalSettings,
     property: 'textFloatPrecision',
@@ -539,7 +549,7 @@ function mouseDragged() {
             offsetToNearestY = otherPoint.y - mouseVec.y;
           }
         }
-        applicationGlobalState.measurementsGuiComposer.forEachPoint(computeSnapping);
+        applicationGlobalState.measurementsGuiComposer.forEachPoint(computeSnapping, true);
         // snap to image borders
         computeSnapping({x: 0, y: 0});
         computeSnapping({x: applicationGlobalState.loadedImage.width, y: applicationGlobalState.loadedImage.height});
@@ -609,8 +619,9 @@ function mousePressed() {
     }
     const targetPointDistanceSq = 15*generalSettings.lineWidth/imageViewSettings.zoom;
     const targetLineDistanceSq = generalSettings.lineWidth*generalSettings.lineWidth/imageViewSettings.zoom;
+    const onlyVisible = true;
     applicationGlobalState.measurementsGuiComposer.forEachMeasure(
-      measure => checkNearestMeasure(measure, targetPointDistanceSq, targetLineDistanceSq));
+      measure => checkNearestMeasure(measure, targetPointDistanceSq, targetLineDistanceSq), onlyVisible);
     if (nearestEndpoint !== null) {
       applicationGlobalState.draggedEndpoints = nearestEndpoint;
       applicationGlobalState.measurementsGuiComposer.viewMeasurement(nearestEndpointMeasurement);

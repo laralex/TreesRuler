@@ -6,9 +6,9 @@ function tryCatch(func, failFunc) {
 
 function loadMeasurementsPreset(guifyInstance, measurementsGuiComposer, imageWidth, imageHeight) {
    measurementsGuiComposer.removeAllGroups(guifyInstance);
-   const halfW = imageWidth / 2, halfH = imageHeight / 2;
-   const dx = imageWidth*0.03, dy = imageHeight*0.03;
-   const height1p3 = imageHeight - dy;
+   const w = imageWidth, h = imageHeight;
+   const w2 = imageWidth / 2, h2 = imageHeight / 2;
+   const wd = imageWidth*0.05, hd = imageHeight*0.05; // deltas
    const makeLine = function(x0, y0, x1, y1, denotation, boundBegin, boundEnd) {
       return {
       begin: createVector(x0, y0),
@@ -19,36 +19,33 @@ function loadMeasurementsPreset(guifyInstance, measurementsGuiComposer, imageWid
       };
    }
 
+   const hRoot = h-2*hd, h13 = h-3*hd, hDk = h*0.4, hD0 = h*0.75;
    const heightDefaultMeasures = [
-      makeLine(halfW, imageHeight - dy, halfW, dy, 'H'),
-      makeLine(halfW+dx, imageHeight - dy, halfW + dx, height1p3, 'h_d'),
-      makeLine(halfW+dx, imageHeight - dy, halfW + dx, height1p3, 'h_Dk'),
+      makeLine(0+1*wd    , hRoot  , 0+1*wd   , hd      , 'H'   ), // full height
+      makeLine(0+2*wd    , hRoot  , 0+2*wd   , hDk     , 'h_Dk'), // height to crown max
+      makeLine(0+3*wd    , hRoot  , 0+3*wd   , hD0     , 'h_D0'), // height to crown beginning
+      makeLine(0+4*wd    , hRoot  , 0+4*wd   , h13  , 'h_d1.3'), // height to 1.3 m
    ];
    const crownDefaultMeasures = [
-      makeLine(dx, halfH, imageWidth - dx, halfH, 'Dk'),
-      makeLine(halfW, imageHeight - dy, halfW, dy, 'D_d'),
-
-   ]
-   measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
+      makeLine(w2-6*wd   , hDk-0*hd , w2+6*wd  , hDk-0*hd    , 'Dk'), // crown max
+   ];
+   const trunkDefaultMeasures = [
+     makeLine(w2-1*wd   , h13 , w2+1*wd  , h13  , 'd1.3'), // trunk at height 1.3m
+     makeLine(w2-1*wd   , hD0 , w2+1*wd  , hD0  , 'd_D0'), // trunk at crown beginning
+     makeLine(w2-1*wd   , hDk , w2+1*wd  , hDk  , 'd_Dk'), // trunk at crown max
+   ];
+   let newGroup = measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
       getLocalized('heightMeasurementsGroup'),
       'H', heightDefaultMeasures[0], heightDefaultMeasures.slice(1));
-   measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
+   newGroup.data.measuresAddedCounter = 0;
+   newGroup = measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
       getLocalized('crownDiameterMeasurementsGroup'),
-      'D', {
-      begin: createVector(),
-      end: createVector()
-      });
-   measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
+      'D', crownDefaultMeasures[0], crownDefaultMeasures.slice(1));
+   newGroup.data.measuresAddedCounter = 0;
+   newGroup = measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
       getLocalized('truckDiameterMeasurementsGroup'),
-      'd', {
-      begin: createVector(halfW - dy, height1p3),
-      end: createVector(halfW + dy, height1p3)
-      }, [
-      {
-         begin: createVector(halfW - imageWidth*0.03, imageHeight - imageHeight*0.05),
-         end: createVector(halfW + imageWidth*0.03, imageHeight - imageHeight*0.05)
-      }
-      ]);
+      'd', trunkDefaultMeasures[0], trunkDefaultMeasures.slice(1));
+   newGroup.data.measuresAddedCounter = 0;
 }
 
 class MeasureGroupGuiComposer {
@@ -148,16 +145,16 @@ class MeasureGroupGuiComposer {
          onChange: (data) => {},
          onInitialize: (data) => {},
        },
+       x1 : {
+        type: 'range',
+        label: getLocalized('endPointX'),
+        min: 0, max: imageWidth, step: 1,
+        object: this, property: 'dummyVariable'
+      },
        y0 : {
          type: 'range',
          label: getLocalized('beginPointY'),
          min: 0, max: imageHeight, step: 1,
-         object: this, property: 'dummyVariable'
-       },
-       x1 : {
-         type: 'range',
-         label: getLocalized('endPointX'),
-         min: 0, max: imageWidth, step: 1,
          object: this, property: 'dummyVariable'
        },
        y1 : {
@@ -231,7 +228,7 @@ class MeasureGroupGuiComposer {
  
    _addFloatNoSlider(guifyInstance, definition) {
      let obj = guifyInstance.Register(definition);
-     obj.container.querySelectorAll('.guifyInstance-value-input').forEach(
+     obj.container.querySelectorAll('.guify-value-input').forEach(
        el => { el.style.width = "56%"; }
      );
      return obj;
@@ -255,6 +252,7 @@ class MeasureGroupGuiComposer {
      defaults.guiObjects = measureGuiObjects;
      destinationGuiObjects.push(...measureGuiObjects);
      groupBoundData.measuresAddedCounter += 1;
+     this.viewMeasurement(defaults, true);
    }
  
    bindMeasures(observerMeasure, isObserverBegin, isObserverEnd, sourceMeasure, isSourceBegin, isSourceEnd) {
@@ -362,12 +360,15 @@ class MeasureGroupGuiComposer {
      });
      guiObjects.push(...baseGuiObjects);
      groupBoundData.baseMeasure.guiObjects = baseGuiObjects;
-     this.groups.push({guiObjects: guiObjects, data: groupBoundData, groupFolder: groupFolder});
+     const group = {guiObjects: guiObjects, data: groupBoundData, groupFolder: groupFolder};
+     this.groups.push(group);
      if (measuresDefaultCoords !== undefined) {
        measuresDefaultCoords.forEach(measureOverride => {
          this.addMeasure(guifyInstance, groupFolder, groupBoundData, guiObjects, measureOverride);
        })
      }
+     this.viewMeasurement(groupBoundData.baseMeasure, false);
+     return group;
    }
  
    _removeGuiObjects(guifyInstance, guiObjects) {
@@ -394,8 +395,11 @@ class MeasureGroupGuiComposer {
      this.nextDefaultIndex = 0;
    }
  
-   forEachMeasure(func) {
+   forEachMeasure(func, onlyVisible) {
      this.groups.forEach(group => {
+        if(onlyVisible && !group.data.isRendered) {
+          return;
+        }
        func(group.data.baseMeasure);
        group.data.measures.forEach(measure => {
          func(measure);
@@ -403,10 +407,10 @@ class MeasureGroupGuiComposer {
      });
    }
  
-   forEachPoint(func) {
+   forEachPoint(func, onlyVisible) {
      this.forEachMeasure(measure => {
        func(measure.begin);
        func(measure.end);
-     })
+     }, onlyVisible);
    }
  }
