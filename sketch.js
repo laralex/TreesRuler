@@ -24,7 +24,7 @@ let generalSettings = new function() {
   this.crosshairEnabled = true;
   this.language = 'Russian';
   this.languageGuiToId = {'Russian': 'RUS', 'English': 'ENG'};
-  this.lineWidth = 10;
+  this.lineWidth = 15;
   this.textWidth = 20;
   this.textFloatPrecision = 3;
   this.guiOpacity = 0.9;
@@ -56,6 +56,14 @@ function getLocalized(key, localizationObj=assets.localization) {
   }
   console.warn(key, ' missing localization');
   return key;
+}
+
+function pointToLinePerpVector(pointVec, beginVec, endVec, lineMagSq) {
+  const lineVec = p5.Vector.sub(endVec, beginVec); //.div(lineMagSq);
+  const beginToPoint = p5.Vector.sub(pointVec, beginVec);
+  const projFromOrigin = lineVec.dot(beginToPoint) / lineMagSq;
+  const projVec = lineVec.mult(projFromOrigin).add(beginVec);
+  return projVec.sub(pointVec);
 }
 
 function pointToLineDistanceSq(pointVec, beginVec, endVec, lineMagSq) {
@@ -532,38 +540,71 @@ function mouseDragged() {
       let mouseVec = createVector(
         (mouseX-imgViewBbox.left)/imageViewSettings.zoom,
         (mouseY-imgViewBbox.top)/imageViewSettings.zoom);
-      var offsetToNearestX = -1e6, offsetToNearestY = -1e6, snapDistancePx = 10/imageViewSettings.zoom;
-      if (applicationGlobalState.draggedEndpoints.length == 1) {
-        let draggedPoint = applicationGlobalState.draggedEndpoints[0];
-        draggedPoint.x = mouseVec.x;
-        draggedPoint.y = mouseVec.y;
-        if (generalSettings.isAltButtonDown) { print('ALT'); return; } // no snapping
+      var snapDistancePx = 10/imageViewSettings.zoom;
+      var lineDistancePx = 5/imageViewSettings.zoom;
+      const computeOffsetToNearsetPoint = function(fromPoint, ignorePoints) {
+        var offsetToNearestX = -1e6, offsetToNearestY = -1e6;
         const computeSnapping = function(otherPoint) {
-          if (otherPoint == draggedPoint) {
+          if (ignorePoints && ignorePoints.indexOf(otherPoint) >= 0) {
             return;
           }
-          if (abs(otherPoint.x - mouseVec.x) < abs(offsetToNearestX)) {
-            offsetToNearestX = otherPoint.x - mouseVec.x;
+          const delta = p5.Vector.sub(otherPoint, fromPoint);
+          if (abs(delta.x) <= 1 || abs(delta.y) <= 1) {
+            return;
           }
-          if (abs(otherPoint.y - mouseVec.y) < abs(offsetToNearestY)) {
-            offsetToNearestY = otherPoint.y - mouseVec.y;
+          if (abs(delta.x) < abs(offsetToNearestX)) {
+            offsetToNearestX = delta.x;
+          }
+          if (abs(delta.y) < abs(offsetToNearestY)) {
+            offsetToNearestY = delta.y;
           }
         }
         applicationGlobalState.measurementsGuiComposer.forEachPoint(computeSnapping, true);
         // snap to image borders
-        computeSnapping({x: 0, y: 0});
-        computeSnapping({x: applicationGlobalState.loadedImage.width, y: applicationGlobalState.loadedImage.height});
-        if (abs(offsetToNearestX) < snapDistancePx) {
-          draggedPoint.x = mouseVec.x + offsetToNearestX;
-        } 
-        if (abs(offsetToNearestY) < snapDistancePx) {
-          draggedPoint.y = mouseVec.y + offsetToNearestY;
+        computeSnapping(createVector(0, 0));
+        computeSnapping(createVector(
+          applicationGlobalState.loadedImage.width,
+          applicationGlobalState.loadedImage.height));
+        return createVector(offsetToNearestX, offsetToNearestY);
+      }
+      if (applicationGlobalState.draggedEndpoints.length == 1) {
+        let draggedPoint = applicationGlobalState.draggedEndpoints[0];
+        draggedPoint.x = mouseVec.x;
+        draggedPoint.y = mouseVec.y;
+        if (applicationGlobalState.isAltButtonDown) { return; } // no snapping
+        let offset = computeOffsetToNearsetPoint(draggedPoint);
+        if (abs(offset.x) < snapDistancePx) {
+          draggedPoint.x = mouseVec.x + offset.x;
+        }
+        if (abs(offset.y) < snapDistancePx) {
+          draggedPoint.y = mouseVec.y + offset.y;
         }
       } else {
-        applicationGlobalState.draggedEndpoints.forEach(draggedPoint => {
-          draggedPoint.x += movedX/imageViewSettings.zoom;
-          draggedPoint.y += movedY/imageViewSettings.zoom;
-        });
+        const mouseDelta = createVector(movedX/imageViewSettings.zoom, movedY/imageViewSettings.zoom);
+        let lineOffset = createVector(0, 0);
+        let snappedEndpoint = applicationGlobalState.draggedEndpoints[0];
+        let mouseToBegin = p5.Vector.sub(
+          applicationGlobalState.draggedEndpoints[1],
+          snappedEndpoint);
+        let mouseToEnd = p5.Vector.sub(
+          applicationGlobalState.draggedEndpoints[2],
+          snappedEndpoint);
+        if (!applicationGlobalState.isAltButtonDown) { // no snap with ALT
+          let offset = computeOffsetToNearsetPoint(snappedEndpoint);
+          if (abs(offset.x) < lineDistancePx) {
+            lineOffset.x += offset.x;
+          }
+          if (abs(offset.y) < lineDistancePx) {
+            lineOffset.y += offset.y;
+          }
+        }
+        if (lineOffset.magSq() <= 0) {
+          snappedEndpoint.set(mouseVec);
+        } else {
+          snappedEndpoint.add(lineOffset);
+        }
+        applicationGlobalState.draggedEndpoints[1].set(snappedEndpoint).add(mouseToBegin);
+        applicationGlobalState.draggedEndpoints[2].set(snappedEndpoint).add(mouseToEnd);
       }
     }
   }
@@ -597,7 +638,8 @@ function mousePressed() {
       const beginToEnd = p5.Vector.sub(measure.begin, measure.end);
       var beginDistance = beginToMouse.magSq();
       var endDistance = mouseToEnd.magSq();
-      const distanceToLine = pointToLineDistanceSq(mouseVec, measure.begin, measure.end, beginToEnd.magSq());
+      const perpendicularToLine = pointToLinePerpVector(mouseVec, measure.begin, measure.end, beginToEnd.magSq());
+      const distanceToLine = perpendicularToLine.magSq();
       targetPointDistanceSq = min(targetPointDistanceSq, nearestDistanceSq);
       if (beginDistance <= targetPointDistanceSq || endDistance <= targetPointDistanceSq) {
         if (beginDistance <= targetPointDistanceSq) {
@@ -614,7 +656,7 @@ function mousePressed() {
           && mouseToEnd.dot(beginToEnd) > 0) {
         nearestDistanceSq = distanceToLine;
         nearestLineMeasurement = measure;
-        nearestLine = [measure.begin, measure.end];
+        nearestLine = [mouseVec.add(perpendicularToLine), measure.begin, measure.end];
       }
     }
     const targetPointDistanceSq = 15*generalSettings.lineWidth/imageViewSettings.zoom;
