@@ -18,6 +18,7 @@ let applicationGlobalState = new function() {
   this.measurementsGuiComposer = null;
   this.gui = null;
   this.loadedImage = null;
+  this.shownPopupElement = null;
 }();
 
 // bound to be visualized in GUI, and receiving new values from GUI
@@ -141,6 +142,28 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
   };
   document.title = getLocalized('title');
   guifyInstance.Register([
+    {
+      type: 'button',
+      label: getLocalized('instructionsButton'),
+      action: () => {
+        if (applicationGlobalState.shownPopupElement) {
+          applicationGlobalState.shownPopupElement.remove();
+        }
+        let div = createSpan();
+        applicationGlobalState.shownPopupElement = div;
+        div.elt.innerText = getLocalized('instructionsContent');
+        div.style('font-size', '16px');
+        div.style('white-spacвшмe', 'pre-wrap');
+        div.style('background', '#f0f0f0');
+        div.style('border', '5px solid #aa0000');
+        div.style('padding', '5px');
+        div.style('width', (windowWidth - generalSettings.guiWidth - 50)+'px');
+        div.position(15, 30);
+        div.mousePressed(() => {
+          div.remove();
+        });
+      }
+    },
     {
       type: 'select',
       options: ['Russian', 'English'],
@@ -733,18 +756,16 @@ function mousePressed() {
       const perpendicularToLine = pointToLinePerpVector(mouseVec, measure.begin, measure.end, beginToEnd.magSq());
       const distanceToLine = perpendicularToLine.magSq();
       targetPointDistanceSq = min(targetPointDistanceSq, nearestDistanceSq);
-      if (beginDistance <= targetPointDistanceSq || endDistance <= targetPointDistanceSq) {
-        if (beginDistance <= targetPointDistanceSq) {
+      if (beginDistance <= targetPointDistanceSq) {
           nearestDistanceSq = beginDistance;
           nearestEndpointMeasurement = measure;
           nearestEndpoint = [measure.begin];
-        } else {
+      } else if (endDistance <= targetPointDistanceSq) {
           nearestDistanceSq = endDistance;
           nearestEndpointMeasurement = measure;
           nearestEndpoint = [measure.end];
-        }
       } else if (distanceToLine < min(targetLineDistanceSq, nearestDistanceSq)
-          && beginToMouse.dot(beginToEnd) > 0 
+          && beginToMouse.dot(beginToEnd) > 0
           && mouseToEnd.dot(beginToEnd) > 0) {
         nearestDistanceSq = distanceToLine;
         nearestLineMeasurement = measure;
