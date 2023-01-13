@@ -769,12 +769,15 @@ function mousePressed() {
     let imgViewBbox = applicationGlobalState.imgView.getScreenBbox();
     let mouseVec = createVector(mouseX-imgViewBbox.left, mouseY-imgViewBbox.top);
     mouseVec.div(imageViewSettings.zoom);
-    var nearestDistanceSq = 1e6;
+    const targetPointDistanceSq = 15*generalSettings.lineWidth/imageViewSettings.zoom;
+    const targetLineDistanceSq = generalSettings.lineWidth*generalSettings.lineWidth/imageViewSettings.zoom;
+    var nearestEndpointDistanceSq = targetPointDistanceSq;
+    var nearestLineDistanceSq = targetLineDistanceSq;
     var nearestEndpointMeasurement = null;
     var nearestEndpoint = null;
     var nearestLineMeasurement = null;
     var nearestLine = null;
-    const checkNearestMeasure = function(measure, targetPointDistanceSq, targetLineDistanceSq) {
+    const checkNearestMeasure = function(measure) {
       const beginToMouse = p5.Vector.sub(measure.begin, mouseVec);
       const mouseToEnd = p5.Vector.sub(mouseVec, measure.end);
       const beginToEnd = p5.Vector.sub(measure.begin, measure.end);
@@ -782,28 +785,29 @@ function mousePressed() {
       var endDistance = mouseToEnd.magSq();
       const perpendicularToLine = pointToLinePerpVector(mouseVec, measure.begin, measure.end, beginToEnd.magSq());
       const distanceToLine = perpendicularToLine.magSq();
-      targetPointDistanceSq = min(targetPointDistanceSq, nearestDistanceSq);
-      if (beginDistance <= targetPointDistanceSq) {
-          nearestDistanceSq = beginDistance;
-          nearestEndpointMeasurement = measure;
-          nearestEndpoint = [measure.begin];
-      } else if (endDistance <= targetPointDistanceSq) {
-          nearestDistanceSq = endDistance;
-          nearestEndpointMeasurement = measure;
-          nearestEndpoint = [measure.end];
-      } else if (distanceToLine < min(targetLineDistanceSq, nearestDistanceSq)
+      if (distanceToLine < nearestLineDistanceSq
           && beginToMouse.dot(beginToEnd) > 0
           && mouseToEnd.dot(beginToEnd) > 0) {
-        nearestDistanceSq = distanceToLine;
+        nearestLineDistanceSq = distanceToLine;
         nearestLineMeasurement = measure;
         nearestLine = [mouseVec.add(perpendicularToLine), measure.begin, measure.end];
       }
+      if (beginDistance <= nearestEndpointDistanceSq) {
+        nearestEndpointDistanceSq = beginDistance;
+        nearestEndpointMeasurement = measure;
+        nearestEndpoint = [measure.begin];
+      }
+      if (endDistance <= nearestEndpointDistanceSq) {
+        nearestEndpointDistanceSq = endDistance;
+        nearestEndpointMeasurement = measure;
+        nearestEndpoint = [measure.end];
+      }
     }
-    const targetPointDistanceSq = 15*generalSettings.lineWidth/imageViewSettings.zoom;
-    const targetLineDistanceSq = generalSettings.lineWidth*generalSettings.lineWidth/imageViewSettings.zoom;
+
     const onlyVisible = true;
     applicationGlobalState.measurementsGuiComposer.forEachMeasure(
-      measure => checkNearestMeasure(measure, targetPointDistanceSq, targetLineDistanceSq), onlyVisible);
+      measure => checkNearestMeasure(measure), onlyVisible);
+    print('stop');
     if (nearestEndpoint !== null) {
       applicationGlobalState.draggedEndpoints = nearestEndpoint;
       applicationGlobalState.measurementsGuiComposer.viewMeasurement(nearestEndpointMeasurement);
@@ -833,14 +837,12 @@ function keyPressed() {
     }
     if ((imageViewSettings.rotationDegrees + epsilon) * (imageViewSettings.rotationDegrees + delta - epsilon) < 0) {
       // went over 0, toggle clockwise
-      print('Toggle');
       imageViewSettings.rotationDegrees += delta;
       imageViewSettings.rotationIsClockwise = !imageViewSettings.rotationIsClockwise;
       imageViewSettings.rotationDegrees = abs(imageViewSettings.rotationDegrees);
     } else {
       imageViewSettings.rotationDegrees += delta;
     }
-    print(imageViewSettings.rotationDegrees, imageViewSettings.rotationIsClockwise);
   }
 }
 
