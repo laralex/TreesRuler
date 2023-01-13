@@ -21,7 +21,7 @@ function loadMeasurementsPreset(guifyInstance, measurementsGuiComposer, imageWid
 
    const hRoot = h-2*hd, h13 = h-3*hd, hDk = h*0.4, hD0 = h*0.75;
    const heightDefaultMeasures = [
-      makeLine(0+1*wd    , hRoot  , 0+1*wd   , hd      , 'H'   ), // full height
+      makeLine(w2    , hRoot  , w2   , hd      , 'H'   ), // full height
       makeLine(0+2*wd    , hRoot  , 0+2*wd   , hDk     , 'h_Dk'), // height to crown max
       makeLine(0+3*wd    , hRoot  , 0+3*wd   , hD0     , 'h_D0'), // height to crown beginning
       makeLine(0+4*wd    , hRoot  , 0+4*wd   , h13  , 'h_d1.3'), // height to 1.3 m
@@ -36,7 +36,7 @@ function loadMeasurementsPreset(guifyInstance, measurementsGuiComposer, imageWid
    ];
    let newGroup = measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
       getLocalized('heightMeasurementsGroup'),
-      'H', heightDefaultMeasures[0], heightDefaultMeasures.slice(1));
+      'h', heightDefaultMeasures[0], heightDefaultMeasures.slice(1));
    newGroup.data.measuresAddedCounter = 0;
    newGroup = measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
       getLocalized('crownDiameterMeasurementsGroup'),

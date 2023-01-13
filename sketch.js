@@ -51,6 +51,9 @@ let imageViewSettings = new function() {
   this.zoomMin = 0.01;
   this.zoomMax = 100;
   this.zoomSensitivity = 0.0005;
+  this.rotationArrowsSensitivity = 0.5;
+  this.rotationDegrees = 0;
+  this.rotationIsClockwise = true;
 }();
 
 function getLocalized(key, localizationObj=assets.localization) {
@@ -233,10 +236,10 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
         // window.alert(getLocalized('resetSettingsPopup'));
       }
     },
+    { type: 'folder', label: getLocalized('imageViewFolder'),  folder: getLocalized('settingsFolder'), open: false },
+    { type: 'folder', label: getLocalized('lineFolder'),  folder: getLocalized('settingsFolder'), open: false },
     { type: 'folder', label: getLocalized('guiFolder'), folder: getLocalized('settingsFolder'), open: false },
     { type: 'folder', label: getLocalized('crosshairFolder'),  folder: getLocalized('settingsFolder'), open: false },
-    { type: 'folder', label: getLocalized('zoomFolder'),  folder: getLocalized('settingsFolder'), open: false },
-    { type: 'folder', label: getLocalized('lineFolder'),  folder: getLocalized('settingsFolder'), open: false },
     { type: 'folder', label: getLocalized('measuresFolder'), open: true },
   ]);
 
@@ -301,7 +304,16 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
       property: 'zoom', scale: 'log',
       min: imageViewSettings.zoomMin, max: imageViewSettings.zoomMax,
     },
-  ], { object: imageViewSettings, folder: getLocalized('zoomFolder') });
+    {
+      type: 'range', label: getLocalized('imageRotation'),
+      property: 'rotationDegrees',
+      min: 0, max: 45,
+    },
+    {
+      type: 'checkbox', label: getLocalized('imageRotationClockwise'),
+      property: 'rotationIsClockwise'
+    }
+  ], { object: imageViewSettings, folder: getLocalized('imageViewFolder') });
 
   guifyInstance.Register([
     {
@@ -426,6 +438,8 @@ function resetZoom() {
   imageViewSettings.zoom = min(
     windowHeight / applicationGlobalState.loadedImage.height,
     windowWidth  / applicationGlobalState.loadedImage.width);
+  imageViewSettings.rotationDegrees = 0;
+  imageViewSettings.rotationIsClockwise = true;
 }
 
 function loadSettingsFromCookies() {
@@ -595,6 +609,21 @@ function updateMeasurementsLengths() {
   });
 }
 
+function drawImage() {
+  let imgViewBbox = applicationGlobalState.imgView.getScreenBbox();
+  push();
+  let dx = imgViewBbox.left+imgViewBbox.width / 2,
+      dy = imgViewBbox.top+imgViewBbox.height / 2
+      translate(dx, dy);
+  let rotationRadians = imageViewSettings.rotationDegrees / 180 * PI
+  rotate(rotationRadians * (imageViewSettings.rotationIsClockwise ? 1 : -1));
+  translate(-dx, -dy);
+  image(applicationGlobalState.loadedImage,
+    imgViewBbox.left, imgViewBbox.top,
+    imgViewBbox.width, imgViewBbox.height);
+  pop();
+}
+
 function draw() {
   clear();
   updateMeasurementsLengths();
@@ -604,10 +633,8 @@ function draw() {
       applicationGlobalState.loadedImage.height,
       windowWidth, windowHeight,
       imageViewSettings.zoom, imageViewSettings.panX, imageViewSettings.panY);
-    let imgViewBbox = applicationGlobalState.imgView.getScreenBbox(); 
-    image(applicationGlobalState.loadedImage,
-      imgViewBbox.left, imgViewBbox.top,
-      imgViewBbox.width, imgViewBbox.height);
+    drawImage();
+    let imgViewBbox = applicationGlobalState.imgView.getScreenBbox();
     if (!applicationGlobalState.isCtrlButtonDown) {
       drawMeasurements(imgViewBbox.left, imgViewBbox.top, imageViewSettings.zoom);
     }
@@ -794,6 +821,26 @@ function keyPressed() {
     applicationGlobalState.isCtrlButtonDown = true;
   } else if (keyCode == SHIFT) {
     applicationGlobalState.isShiftButtonDown = true;
+  } 
+  if (applicationGlobalState.isShiftButtonDown && (keyCode == LEFT_ARROW || keyCode == RIGHT_ARROW)) {
+    let delta = imageViewSettings.rotationArrowsSensitivity;
+    let epsilon = 1e-6;
+    if (keyCode == LEFT_ARROW) {
+      delta *= -1;
+    }
+    if (!imageViewSettings.rotationIsClockwise) {
+      delta *= -1;
+    }
+    if ((imageViewSettings.rotationDegrees + epsilon) * (imageViewSettings.rotationDegrees + delta - epsilon) < 0) {
+      // went over 0, toggle clockwise
+      print('Toggle');
+      imageViewSettings.rotationDegrees += delta;
+      imageViewSettings.rotationIsClockwise = !imageViewSettings.rotationIsClockwise;
+      imageViewSettings.rotationDegrees = abs(imageViewSettings.rotationDegrees);
+    } else {
+      imageViewSettings.rotationDegrees += delta;
+    }
+    print(imageViewSettings.rotationDegrees, imageViewSettings.rotationIsClockwise);
   }
 }
 
