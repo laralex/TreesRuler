@@ -690,9 +690,6 @@ function keyPressed() {
     applicationGlobalState.isCtrlButtonDown = true;
   } else if (keyCode == SHIFT) {
     applicationGlobalState.isShiftButtonDown = true;
-  } else if (keyCode == ESCAPE) {
-    applicationGlobalState.measurementsGuiComposer
-      .duplicateViewedMeasurement(applicationGlobalState.gui);
   }
 }
 
@@ -703,5 +700,11 @@ function keyReleased() {
     applicationGlobalState.isCtrlButtonDown = false;
   } else if (keyCode == SHIFT) {
     applicationGlobalState.isShiftButtonDown = false;
+  } else if (keyCode == ESCAPE) {
+    applicationGlobalState.measurementsGuiComposer
+      .duplicateViewedMeasurement(applicationGlobalState.gui);
+  } else if (keyCode == DELETE) {
+    applicationGlobalState.measurementsGuiComposer
+      .removeViewedMeasurement(applicationGlobalState.gui);
   }
 }

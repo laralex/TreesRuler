@@ -151,6 +151,20 @@ class MeasureGroupGuiComposer {
       }
    }
 
+   removeViewedMeasurement(guifyInstance) {
+      if (!this.viewMeasure) { return; }
+      if (!this.viewMeasure.guiObjects) { return; }
+      let location = this._locateMeasurementObj(this.viewMeasure);
+      console.assert(location.measureIndex !== null && location.measureIndex != -1);
+      location.measureGroup.data.measures.splice(location.measureIndex, 1);
+      Object.values(this.viewMeasure.guiObjects).forEach(obj => tryCatch(
+        ()=>{ guifyInstance.Remove(obj); },
+        (e)=>{}
+      ))
+      this.viewMeasurement(null);
+      // TODO delete from boundMap
+   }
+
    addViewGui(guifyInstance, viewFolder, imageWidth, imageHeight) {
      const definitions = {
        label: {
@@ -209,18 +223,7 @@ class MeasureGroupGuiComposer {
        removeButton : {
              type: 'button',
              label: getLocalized('guiRemoveMeasure'),
-             action: () => {
-               if (!this.viewMeasure.guiObjects) { return; }
-               let location = this._locateMeasurementObj(this.viewMeasure);
-               console.assert(location.measureIndex !== null && location.measureIndex != -1);
-               location.measureGroup.data.measures.splice(location.measureIndex, 1);
-               Object.values(this.viewMeasure.guiObjects).forEach(obj => tryCatch(
-                 ()=>{ guifyInstance.Remove(obj); },
-                 (e)=>{}
-               ))
-               this.viewMeasurement(null);
-               // TODO delete from boundMap
-             },
+             action: () => this.removeViewedMeasurement(guifyInstance),
        }
      };
      for (const [key, definition] of Object.entries(definitions)) {
