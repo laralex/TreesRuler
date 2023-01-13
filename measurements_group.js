@@ -165,7 +165,7 @@ class MeasureGroupGuiComposer {
       // TODO delete from boundMap
    }
 
-   addViewGui(guifyInstance, viewFolder, imageWidth, imageHeight) {
+   addViewGui(guifyInstance, viewFolder) {
      const definitions = {
        label: {
          type: 'display',
@@ -182,7 +182,7 @@ class MeasureGroupGuiComposer {
        x0 : {
          type: 'range',
          label: getLocalized('beginPointX'),
-         min: 0, max: imageWidth, step: 1,
+         min: 0, max: 1, step: 1,
          object: this, property: 'dummyVariable',
          onChange: (data) => {},
          onInitialize: (data) => {},
@@ -190,19 +190,19 @@ class MeasureGroupGuiComposer {
        x1 : {
         type: 'range',
         label: getLocalized('endPointX'),
-        min: 0, max: imageWidth, step: 1,
+        min: 0, max: 1, step: 1,
         object: this, property: 'dummyVariable'
       },
        y0 : {
          type: 'range',
          label: getLocalized('beginPointY'),
-         min: 0, max: imageHeight, step: 1,
+         min: 0, max: 1, step: 1,
          object: this, property: 'dummyVariable'
        },
        y1 : {
          type: 'range',
          label: getLocalized('endPointY'),
-         min: 0, max: imageHeight, step: 1,
+         min: 0, max: 1, step: 1,
          object: this, property: 'dummyVariable'
        },
        relativeLength : {
@@ -291,23 +291,98 @@ class MeasureGroupGuiComposer {
      this.viewMeasurement(defaults, true);
    }
  
-   bindMeasures(observerMeasure, isObserverBegin, isObserverEnd, sourceMeasure, isSourceBegin, isSourceEnd) {
-     if (this.boundMeasures.has(observerMeasure)) {
-       let state = this.boundMeasures.get(observerMeasure);
-       if (isObserverBegin) {
-         state.begin = isSourceBegin ? sourceMeasure.begin : sourceMeasure.end;
-       }
-       if (isObserverEnd) {
-         state.end = isSourceBegin ? sourceMeasure.begin : sourceMeasure.end;
-       }
-     } else {
-       this.boundMeasures.set(observerMeasure, { 
-         begin: isObserverBegin ? (isSourceBegin ? sourceMeasure.begin : sourceMeasure.end) : null,
-         end: isObserverEnd ? (isSourceBegin ? sourceMeasure.begin : sourceMeasure.end) : null,
-       })
-     }
-   }
+  //  bindMeasures(observerMeasure, isObserverBegin, isObserverEnd, sourceMeasure, isSourceBegin, isSourceEnd) {
+  //    if (this.boundMeasures.has(observerMeasure)) {
+  //      let state = this.boundMeasures.get(observerMeasure);
+  //      if (isObserverBegin) {
+  //        state.begin = isSourceBegin ? sourceMeasure.begin : sourceMeasure.end;
+  //      }
+  //      if (isObserverEnd) {
+  //        state.end = isSourceBegin ? sourceMeasure.begin : sourceMeasure.end;
+  //      }
+  //    } else {
+  //      this.boundMeasures.set(observerMeasure, { 
+  //        begin: isObserverBegin ? (isSourceBegin ? sourceMeasure.begin : sourceMeasure.end) : null,
+  //        end: isObserverEnd ? (isSourceBegin ? sourceMeasure.begin : sourceMeasure.end) : null,
+  //      })
+  //    }
+  //  }
  
+  _addGroupGui(guifyInstance, parentFolder, group) {
+    let groupBoundData = group.data;
+    let groupFolder = group.groupFolder;
+    let guiObjects = group.guiObjects;
+    this._removeGuiObjects(guifyInstance, guiObjects); // remove old
+    guiObjects.push(guifyInstance.Register({
+      type: 'folder',
+      label: groupFolder,
+      folder: parentFolder,
+    }))
+    guiObjects.push(guifyInstance.Register({
+      type: 'button',
+      label: getLocalized('guiRemoveGroup'),
+      folder: groupFolder,
+      action: () => {
+        if (this.groups.length == 1 || confirm(getLocalized('removeGroupDialog') + ' ' + groupFolder)) {
+          this.removeGroup(guifyInstance, groupFolder);
+        } else {
+          print('Cancel removing of group');
+        }
+      }
+    }));
+    guiObjects.push(guifyInstance.Register({
+      type: 'checkbox',
+      label: getLocalized('guiGroupIsRendered'),
+      property: 'isRendered',
+      object: groupBoundData, folder: groupFolder,
+    }));
+    guiObjects.push(guifyInstance.Register({
+        type: 'color',
+        label: getLocalized('guiGroupColor'),
+        format: 'hex',
+        property: 'color',
+        object: groupBoundData, folder: groupFolder
+    }));
+    guiObjects.push(guifyInstance.Register({
+        type: 'text',
+        label: getLocalized('guiGroupDenotation'),
+        property: 'denotation',
+        object: groupBoundData, folder: groupFolder,
+    }));
+    guiObjects.push(this._addFloatNoSlider(guifyInstance, {
+      type: 'range',
+      label: getLocalized('guiBaseAbsoluteValue'),
+      min: 1e-3, max: 1e6, step:1e-6, precision: 20,
+      property: 'baseAbsoluteLength',
+      object: groupBoundData, folder: groupFolder,
+    }));
+
+    guiObjects.push(guifyInstance.Register({
+      type: 'button',
+      label: getLocalized('guiNewMeasure'),
+      folder: groupFolder,
+      action: () => this.addMeasure(guifyInstance, group),
+    }));
+    const baseGuiObjects = this._addMeasureGui({
+      guifyInstance: guifyInstance, parentFolder: groupFolder,
+      label: (groupBoundData.baseMeasure.denotationOverride || getLocalized('baseMeasurePrefix')) + getLocalized('baseMeasureSuffix'),
+      boundData: groupBoundData.baseMeasure,
+      isRemovable: false,
+    });
+    guiObjects.push(...baseGuiObjects);
+    groupBoundData.baseMeasure.guiObjects = baseGuiObjects;
+
+    for(var [index, measureData] of groupBoundData.measures.entries()) {
+        let measureGuiObjects = this._addMeasureGui({
+          guifyInstance: guifyInstance, parentFolder: groupFolder,
+          label: measureData.denotationOverride || `${getLocalized('measure')} ${index+1}`,
+          boundData: measureData,
+          groupFolder: groupFolder,
+        });
+        guiObjects.push(...measureGuiObjects);
+        measureData.guiObjects = measureGuiObjects;
+    }
+  }
    newGroup(guifyInstance, parentFolder, groupFolder, groupDenotation, baseDefaultCoords, measuresDefaultCoords) {
      let guiObjects = [];
      guiObjects.push(guifyInstance.Register({
@@ -351,59 +426,7 @@ class MeasureGroupGuiComposer {
        Object.assign(groupBoundData.baseMeasure, baseDefaultCoords);
      }
      const group = {guiObjects: guiObjects, data: groupBoundData, groupFolder: groupFolder};
-     guiObjects.push(guifyInstance.Register({
-       type: 'button',
-       label: getLocalized('guiRemoveGroup'),
-       folder: groupFolder,
-       action: () => {
-         if (this.groups.length == 1 || confirm(getLocalized('removeGroupDialog') + ' ' + groupFolder)) {
-           this.removeGroup(guifyInstance, groupFolder);
-         } else {
-           print('Cancel removing of group');
-         }
-       }
-     }));
-     guiObjects.push(guifyInstance.Register({
-       type: 'checkbox',
-       label: getLocalized('guiGroupIsRendered'),
-       property: 'isRendered',
-       object: groupBoundData, folder: groupFolder,
-     }));
-     guiObjects.push(guifyInstance.Register({
-         type: 'color',
-         label: getLocalized('guiGroupColor'),
-         format: 'hex',
-         property: 'color',
-         object: groupBoundData, folder: groupFolder
-     }));
-     guiObjects.push(guifyInstance.Register({
-         type: 'text',
-         label: getLocalized('guiGroupDenotation'),
-         property: 'denotation',
-         object: groupBoundData, folder: groupFolder,
-     }));
-     guiObjects.push(this._addFloatNoSlider(guifyInstance, {
-       type: 'range',
-       label: getLocalized('guiBaseAbsoluteValue'),
-       min: 1e-3, max: 1e6, step:1e-6, precision: 20,
-       property: 'baseAbsoluteLength',
-       object: groupBoundData, folder: groupFolder,
-     }));
- 
-     guiObjects.push(guifyInstance.Register({
-       type: 'button',
-       label: getLocalized('guiNewMeasure'),
-       folder: groupFolder,
-       action: () => this.addMeasure(guifyInstance, group),
-     }));
-     const baseGuiObjects = this._addMeasureGui({
-       guifyInstance: guifyInstance, parentFolder: groupFolder,
-       label: (groupBoundData.baseMeasure.denotationOverride || getLocalized('baseMeasurePrefix')) + getLocalized('baseMeasureSuffix'),
-       boundData: groupBoundData.baseMeasure,
-       isRemovable: false,
-     });
-     guiObjects.push(...baseGuiObjects);
-     groupBoundData.baseMeasure.guiObjects = baseGuiObjects;
+     this._addGroupGui(guifyInstance, parentFolder, group);
      this.groups.push(group);
      if (measuresDefaultCoords !== undefined) {
        measuresDefaultCoords.forEach(measureOverride => {

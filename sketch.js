@@ -4,6 +4,7 @@
 const assets = new function() {
   this.font = null;
   this.localization = null;
+  this.languageGuiToId = {'Russian': 'RUS', 'English': 'ENG'};
 }();
 
 // updated from application actions (keyboard, or business logic)
@@ -16,15 +17,13 @@ let applicationGlobalState = new function() {
   this.imgView = null;
   this.measurementsGuiComposer = null;
   this.gui = null;
-  this.loadedImage;
+  this.loadedImage = null;
 }();
 
 // bound to be visualized in GUI, and receiving new values from GUI
 let generalSettings = new function() {
-  this.crosshairEnabled = true;
   this.language = 'Russian';
-  this.languageGuiToId = {'Russian': 'RUS', 'English': 'ENG'};
-  this.lineWidth = 15;
+  this.lineWidth = 10;
   this.textWidth = 20;
   this.textFloatPrecision = 3;
   this.guiOpacity = 0.9;
@@ -33,6 +32,7 @@ let generalSettings = new function() {
   this.guiAskUnsaved = true;
   this.allowSnapping = true;
 }();
+let generalSettingsDefaults = Object.assign({}, generalSettings);
 
 let crosshairSettings = new function() {
   this.crosshairEnabled = true;
@@ -41,6 +41,7 @@ let crosshairSettings = new function() {
   this.crosshairColor = '#ffff00';
   this.invertColor = true;
 }();
+let crosshairSettingsDefaults = Object.assign({}, crosshairSettings);
 
 let imageViewSettings = new function() {
   this.panX = 0;
@@ -53,7 +54,7 @@ let imageViewSettings = new function() {
 
 function getLocalized(key, localizationObj=assets.localization) {
   if (key in localizationObj) {
-    return localizationObj[key][generalSettings.languageGuiToId[generalSettings.language]];
+    return localizationObj[key][assets.languageGuiToId[generalSettings.language]];
   }
   console.warn(key, ' missing localization');
   return key;
@@ -95,15 +96,29 @@ class ImageAABBView {
   }
 }
 
-function setupGui(guifyInstance) {
-  if (guifyInstance !== undefined) {
+function deleteGuify(guifyInstance) {
+  if (guifyInstance) {
+    guifyInstance.panel.container.mouseIsOverGui = false;
+    guifyInstance.panel.container.replaceWith(guifyInstance.panel.container.cloneNode(true));
+    guifyInstance.panel.container.onmouseover.onmouseover = () => {};
+    guifyInstance.panel.container.onmouseover.onmouseleave = () => {};
+    // guifyInstance.panel.container.parentNode.removeChild(guifyInstance.panel.container);
+    guifyInstance.panel.container.remove();
+    // guifyInstance.bar.element.parentNode.removeChild(guifyInstance.bar.element);
+    guifyInstance.bar.element.remove();
+
     let guifyContainers = document.getElementsByClassName('guify-container');
     for (let element of guifyContainers) {
+        element.parentNode.removeChild(element);
         element.remove();
     }
+    print(guifyInstance.panel.container);
     print('Deleted GUI instances');
   }
+}
 
+function setupGui(guifyInstance, measurementsGuiComposer) {
+  deleteGuify(guifyInstance);
   guifyInstance = new guify({
     title:  getLocalized('title'),
     theme: generalSettings.guiTheme, // dark, light, yorha, or theme object
@@ -112,7 +127,7 @@ function setupGui(guifyInstance) {
     barMode: 'above', // none, overlay, above, offset
     panelMode: 'inner',
     panelOverflowBehavior: 'scroll',
-    pollRateMS: 200,
+    pollRateMS: 100,
     opacity: generalSettings.guiOpacity,
     open: true
   });
@@ -133,7 +148,8 @@ function setupGui(guifyInstance) {
       object: generalSettings,
       property: 'language',
       onChange: () => {
-        setupGui(guifyInstance);
+        setupGui(guifyInstance, measurementsGuiComposer);
+        setCookie('generalSettings', generalSettings)
       },
     },
     {
@@ -141,12 +157,14 @@ function setupGui(guifyInstance) {
       label: getLocalized('guiAskUnsaved'),
       property: 'guiAskUnsaved',
       object: generalSettings,
+      onChange: () => setCookie('generalSettings', generalSettings)
     },
     {
       type: 'checkbox',
       label: getLocalized('allowSnapping'),
       property: 'allowSnapping',
       object: generalSettings,
+      onChange: () => setCookie('generalSettings', generalSettings)
     },
   ]);
   let guiFile = guifyInstance.Register({
@@ -179,6 +197,19 @@ function setupGui(guifyInstance) {
   });
   guifyInstance.Register([
     { type: 'folder', label: getLocalized('settingsFolder'), open: false },
+    {
+      type: 'button',
+      folder: getLocalized('settingsFolder'),
+      label: getLocalized('resetSettings'),
+      action: () => {
+        deleteAllCookies();
+        loadSettingsFromDefaults();
+        applicationGlobalState.gui = setupGui(
+          applicationGlobalState.gui,
+          applicationGlobalState.measurementsGuiComposer);
+        // window.alert(getLocalized('resetSettingsPopup'));
+      }
+    },
     { type: 'folder', label: getLocalized('guiFolder'), folder: getLocalized('settingsFolder'), open: false },
     { type: 'folder', label: getLocalized('crosshairFolder'),  folder: getLocalized('settingsFolder'), open: false },
     { type: 'folder', label: getLocalized('zoomFolder'),  folder: getLocalized('settingsFolder'), open: false },
@@ -193,6 +224,7 @@ function setupGui(guifyInstance) {
   };
   guiWidthInitFunc(generalSettings.guiWidth);
 
+
   guifyInstance.Register([
     {
       type: 'range',
@@ -202,6 +234,7 @@ function setupGui(guifyInstance) {
       property: 'guiOpacity',
       onChange: (data) => {
         document.getElementsByClassName('guify-panel-container')[0].style.opacity = data;
+        setCookie('generalSettings', generalSettings);
       }
     },
     {
@@ -211,7 +244,10 @@ function setupGui(guifyInstance) {
       object: generalSettings,
       property: 'guiWidth',
       onInitialize: guiWidthInitFunc,
-      onChange: guiWidthInitFunc
+      onChange: (data) => {
+        guiWidthInitFunc(data);
+        setCookie('generalSettings', generalSettings);
+      }
     },
 
     {
@@ -221,7 +257,8 @@ function setupGui(guifyInstance) {
       object: generalSettings,
       property: 'guiTheme',
       onChange: (data) => {
-        setupGui(guifyInstance);
+        setupGui(guifyInstance, measurementsGuiComposer);
+        setCookie('generalSettings', generalSettings);
       }
     },
   ], { object: generalSettings, folder: getLocalized('guiFolder') });
@@ -247,21 +284,29 @@ function setupGui(guifyInstance) {
     {
       type: 'checkbox', label: getLocalized('crosshairEnabled'),
       property: 'crosshairEnabled',
+      onChange: (data) => setCookie('crosshairSettings', crosshairSettings),
     },
     {
       type: 'range', label: getLocalized('crosshairRadius'),
       property: 'crosshairRadius', min: 0, max: 50, step: 1,
+      onChange: (data) => setCookie('crosshairSettings', crosshairSettings),
     },
 
     {
       type: 'range', label: getLocalized('crosshairLinesEnd'),
       property: 'crosshairLinesEnd', min: 1, max: 50, step: 1,
+      onChange: (data) => setCookie('crosshairSettings', crosshairSettings),
     },
     {
       type: 'color', label: getLocalized('crosshairColor'),
       property: 'crosshairColor', format: 'hex',
+      onChange: (data) => setCookie('crosshairSettings', crosshairSettings),
     },
-    { type: 'checkbox', label: getLocalized('crosshairInvertColor'), property: 'invertColor', },
+    {
+      type: 'checkbox', label: getLocalized('crosshairInvertColor'),
+      property: 'invertColor',
+      onChange: (data) => setCookie('crosshairSettings', crosshairSettings)
+    },
   ], { object: crosshairSettings, folder: getLocalized('crosshairFolder') });
 
   guifyInstance.Register({
@@ -271,8 +316,9 @@ function setupGui(guifyInstance) {
     min: 1, max: 100, step: 1,
     object: generalSettings,
     property: 'lineWidth',
+    onChange: (data) => setCookie('generalSettings', generalSettings),
   });
-
+  
   guifyInstance.Register({
     type: 'range',
     label: getLocalized('guiTextWidth'),
@@ -280,6 +326,7 @@ function setupGui(guifyInstance) {
     min: 1, max: 100, step: 1,
     object: generalSettings,
     property: 'textWidth',
+    onChange: (data) => setCookie('generalSettings', generalSettings),
   });
   guifyInstance.Register({
     type: 'range',
@@ -288,6 +335,7 @@ function setupGui(guifyInstance) {
     min: 1, max: 25, step: 1,
     object: generalSettings,
     property: 'textFloatPrecision',
+    onChange: (data) => setCookie('generalSettings', generalSettings),
   });
 
   guifyInstance.Register({
@@ -296,6 +344,7 @@ function setupGui(guifyInstance) {
     label: getLocalized('guiNewGroupName'),
     folder: getLocalized('measuresFolder'),
     property: 'nextGroupName',
+    onInitialize: () => applicationGlobalState.nextGroupName = getLocalized('defaultGroupName')+1,
     object: applicationGlobalState,
   });
 
@@ -312,8 +361,14 @@ function setupGui(guifyInstance) {
     }
   });
 
-  applicationGlobalState.measurementsGuiComposer = new MeasureGroupGuiComposer();
-  applicationGlobalState.measurementsGuiComposer.addViewGui(guifyInstance, null, 1, 1);
+  measurementsGuiComposer.addViewGui(guifyInstance, null);
+  const img = applicationGlobalState.loadedImage;
+  if (img) {
+    measurementsGuiComposer.updateViewGui(img.width, img.height);
+  }
+  measurementsGuiComposer.groups.forEach(group => {
+    measurementsGuiComposer._addGroupGui(guifyInstance, getLocalized('measuresFolder'), group);
+  })
 
   let guifyBarButtons = document.getElementsByClassName('guify-bar-button');
   for (let element of guifyBarButtons) {
@@ -332,7 +387,7 @@ function loadTreeImage(uri) {
     applicationGlobalState.loadedImage = newImg;
     resetZoom();
     if (applicationGlobalState.measurementsGuiComposer) {
-      applicationGlobalState.nextGroupName = getLocalized('defaultGroupName')+0;
+      applicationGlobalState.nextGroupName = getLocalized('defaultGroupName')+1;
       applicationGlobalState.measurementsGuiComposer.removeAllGroups(applicationGlobalState.gui);
       applicationGlobalState.measurementsGuiComposer.updateViewGui(
         applicationGlobalState.loadedImage.width, 
@@ -350,6 +405,30 @@ function resetZoom() {
     windowWidth  / applicationGlobalState.loadedImage.width);
 }
 
+function loadSettingsFromCookies() {
+  let settings = getCookie('generalSettings');
+  if (settings !== undefined) {
+    generalSettings = settings;
+    print('Cookies: Loaded general settings');
+  }
+  settings = getCookie('crosshairSettings');
+  if (settings !== undefined) {
+    crosshairSettings = settings;
+    print('Cookies: Loaded crosshair settings');
+  }
+}
+
+function loadSettingsFromDefaults() {
+  if (generalSettingsDefaults !== undefined) {
+    Object.assign(generalSettings, generalSettingsDefaults);
+    print('Defaults: Loaded general settings');
+  }
+  if (crosshairSettingsDefaults !== undefined) {
+    Object.assign(crosshairSettings, crosshairSettingsDefaults);
+    print('Defaults: Loaded crosshair settings');
+  }
+}
+
 function preload() {
   assets.localization = loadJSON('./localization.json');
   assets.font = loadFont('./assets/fonts/inconsolata/Inconsolata-Regular.ttf');
@@ -358,8 +437,12 @@ function preload() {
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
+  loadSettingsFromCookies();
   windowResized();
-  applicationGlobalState.gui = setupGui(applicationGlobalState.gui);
+  applicationGlobalState.measurementsGuiComposer = new MeasureGroupGuiComposer();
+  applicationGlobalState.gui = setupGui(
+    applicationGlobalState.gui,
+    applicationGlobalState.measurementsGuiComposer);
   loadTreeImage('./assets/example_trees/000001.jpg');
 }
 

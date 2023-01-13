@@ -184,20 +184,28 @@
       "RUS": "Группа"
    },
    "measure": {
-      "ENG": "Measure.",
+      "ENG": "Measurement",
       "RUS": "Замер"
    },
    "baseMeasurePrefix": {
-      "ENG": "Measure. ",
-      "RUS": "Замер "
+      "ENG": "Unit Measurement",
+      "RUS": "Базисный Замер"
    },
    "baseMeasureSuffix": {
-      "ENG": " (Unit)",
-      "RUS": " (Базисный)"
+      "ENG": "",
+      "RUS": ""
    },
    "measureDenotation": {
       "ENG": "Denotation",
       "RUS": "Обозначение"
+   },
+   "resetSettings": {
+      "ENG": "Reset all settings",
+      "RUS": "Сбросить все настройки"
+   },
+   "resetSettingsPopup": {
+      "ENG": "Settings have been reset. Refresh the page to see the changes",
+      "RUS": "Настройки сброшены. Обновите страницу, чтобы увидеть изменения"
    },
    "beginPointX": {
       "ENG": "← Begin X",
