@@ -111,6 +111,14 @@
       "ENG": "All measurements",
       "RUS": "Все замеры"
    },
+   "allowSnapping": {
+      "ENG": "Snap when dragging points",
+      "RUS": "Прилипание вкл."
+   },
+   "guiDuplicateMesure": {
+      "ENG": "➕ Duplicate measurement",
+      "RUS": "➕ Дублировать замер"
+   },
    "lineFolder": {
       "ENG": "Lines settings",
       "RUS": "Настройки линий"

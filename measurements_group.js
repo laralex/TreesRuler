@@ -90,6 +90,10 @@ class MeasureGroupGuiComposer {
        this.viewGuiSetEnabled(false);
        return;
      }
+     if (isRemovable === undefined) {
+       let location = this._locateMeasurementObj(measurementBoundData);
+       isRemovable = location.measureGroup !== null && location.measureIndex != -1;
+     }
      this.viewGuiSetEnabled(true, isRemovable);
      const boundMap = {
        x0: {object: measurementBoundData.begin, property: 'x'},
@@ -123,6 +127,30 @@ class MeasureGroupGuiComposer {
      this.viewGuiObjects.y1.max = this.viewGuiObjects.y1.maxPos = this.viewGuiObjects.y1.input.max = imageHeight;
    }
  
+   _locateMeasurementObj(measurement) {
+      let measureGroup = null, measureIndex = null;
+      if (measurement) {
+        this.groups.forEach(group => {
+          let foundIdx = group.data.measures.findIndex(measure => measure == measurement);
+          if (foundIdx >= 0) {
+              measureGroup = group;
+              measureIndex = foundIdx;
+          } else if (group.data.baseMeasure == measurement) {
+            measureGroup = group;
+            measureIndex = -1;
+          }
+        });
+      }
+      return { measureIndex: measureIndex, measureGroup: measureGroup };
+   }
+
+   duplicateViewedMeasurement(guifyInstance) {
+      let location = this._locateMeasurementObj(this.viewMeasure);
+      if (location.measureGroup) {
+        this.addMeasure(guifyInstance, location.measureGroup);
+      }
+   }
+
    addViewGui(guifyInstance, viewFolder, imageWidth, imageHeight) {
      const definitions = {
        label: {
@@ -173,25 +201,19 @@ class MeasureGroupGuiComposer {
          label: getLocalized('guiAbsoluteLength'),
          object: this, property: 'dummyVariable'
        },
+       duplicateButton : {
+          type: 'button',
+          label: getLocalized('guiDuplicateMesure'),
+          action: () => this.duplicateViewedMeasurement(guifyInstance),
+       },
        removeButton : {
              type: 'button',
              label: getLocalized('guiRemoveMeasure'),
              action: () => {
                if (!this.viewMeasure.guiObjects) { return; }
-               // let measurementGroup = this.groups.find(group => group.groupFolder == this.viewGuiObjects[0].folder);
-               // let measurementIndex = measurementGroup.measures.findIndex(measure => measure == this.viewMeasure);
-               // measurementGroup.measures.splice(measurementIndex, 1);
-               let measureGroup, measureIndex;
-               this.groups.forEach(group => {
-                  let foundIdx = group.data.measures.findIndex(measure => measure == this.viewMeasure);
-                  print(foundIdx);
-                  if (foundIdx >= 0) {
-                     measureGroup = group;
-                     measureIndex = foundIdx;
-                     return;
-                  }
-               })
-               measureGroup.data.measures.splice(measureIndex, 1);
+               let location = this._locateMeasurementObj(this.viewMeasure);
+               console.assert(location.measureIndex !== null && location.measureIndex != -1);
+               location.measureGroup.data.measures.splice(location.measureIndex, 1);
                Object.values(this.viewMeasure.guiObjects).forEach(obj => tryCatch(
                  ()=>{ guifyInstance.Remove(obj); },
                  (e)=>{}
@@ -234,24 +256,35 @@ class MeasureGroupGuiComposer {
      return obj;
    }
  
-   addMeasure(guifyInstance, groupFolder, groupBoundData, destinationGuiObjects, measureOverrideData) {
-     let index = groupBoundData.measuresAddedCounter;
+   makeNeighborMeasure(measureData, offsetScale) {
+      const direction = p5.Vector.sub(measureData.begin, measureData.end).normalize();
+      const perpendicular = createVector(direction.y, -direction.x).mult(offsetScale);
+      return {
+        begin: measureData.begin.copy().add(perpendicular),
+        end:   measureData.end.copy().add(perpendicular)
+      }
+   }
+   addMeasure(guifyInstance, group, measureOverrideData) {
+     let index = group.data.measuresAddedCounter;
      let defaults = {
-        begin: createVector(0, 0),
+       begin: createVector(Math.random()*1000, Math.random()*1000),
        end: createVector(Math.random()*1000, Math.random()*1000),
        denotationOverride: null,
      };
+     if (this.viewMeasure) {
+        Object.assign(defaults, this.makeNeighborMeasure(this.viewMeasure, 60));
+     }
      Object.assign(defaults, measureOverrideData);
-     groupBoundData.measures.push(defaults);
+     group.data.measures.push(defaults);
      let measureGuiObjects = this._addMeasureGui({
-       guifyInstance: guifyInstance, parentFolder: groupFolder,
+       guifyInstance: guifyInstance, parentFolder: group.groupFolder,
        label: defaults.denotationOverride || `${getLocalized('measure')} ${index+1}`,
-       boundData: groupBoundData.measures[groupBoundData.measures.length-1],
-       groupFolder: groupFolder,
+       boundData: group.data.measures[group.data.measures.length-1],
+       groupFolder: group.groupFolder,
      });
      defaults.guiObjects = measureGuiObjects;
-     destinationGuiObjects.push(...measureGuiObjects);
-     groupBoundData.measuresAddedCounter += 1;
+     group.guiObjects.push(...measureGuiObjects);
+     group.data.measuresAddedCounter += 1;
      this.viewMeasurement(defaults, true);
    }
  
@@ -286,7 +319,10 @@ class MeasureGroupGuiComposer {
        ++this.nextDefaultIndex;
      } else {
        const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16);
-       defaults = { color: randomColor, denotation: groupDenotation }
+       const characters       = 'FGHIJKLMNOPQRSTUVWXYZfghijklmnopqrstuvwxyz';
+       const charactersLength = characters.length;
+       const randomDenotation = characters.charAt(Math.floor(Math.random() * charactersLength))
+       defaults = { color: randomColor, denotation: randomDenotation };
      }
      if (groupDenotation !== undefined) {
        defaults.denotation = groupDenotation;
@@ -296,17 +332,22 @@ class MeasureGroupGuiComposer {
        opacity: 1.0,
        isRendered: true,
        baseMeasure: {
-         begin: createVector(Math.random()*1000, Math.random()*1000),
-         end: createVector(Math.random()*1000, Math.random()*1000),
+         begin: createVector(Math.random()*300, Math.random()*300),
+         end: createVector(300+Math.random()*700, 300+Math.random()*700),
          denotationOverride: null,
          guiObjects: null},
        baseAbsoluteLength: 1.0,
        measuresAddedCounter: 0,
        measures: []
      };
+     if (this.viewMeasure) {
+        Object.assign(groupBoundData.baseMeasure, 
+          this.makeNeighborMeasure(this.viewMeasure, 50));
+     }
      if (baseDefaultCoords !== undefined) {
        Object.assign(groupBoundData.baseMeasure, baseDefaultCoords);
      }
+     const group = {guiObjects: guiObjects, data: groupBoundData, groupFolder: groupFolder};
      guiObjects.push(guifyInstance.Register({
        type: 'button',
        label: getLocalized('guiRemoveGroup'),
@@ -350,7 +391,7 @@ class MeasureGroupGuiComposer {
        type: 'button',
        label: getLocalized('guiNewMeasure'),
        folder: groupFolder,
-       action: () => this.addMeasure(guifyInstance, groupFolder, groupBoundData, guiObjects),
+       action: () => this.addMeasure(guifyInstance, group),
      }));
      const baseGuiObjects = this._addMeasureGui({
        guifyInstance: guifyInstance, parentFolder: groupFolder,
@@ -360,11 +401,10 @@ class MeasureGroupGuiComposer {
      });
      guiObjects.push(...baseGuiObjects);
      groupBoundData.baseMeasure.guiObjects = baseGuiObjects;
-     const group = {guiObjects: guiObjects, data: groupBoundData, groupFolder: groupFolder};
      this.groups.push(group);
      if (measuresDefaultCoords !== undefined) {
        measuresDefaultCoords.forEach(measureOverride => {
-         this.addMeasure(guifyInstance, groupFolder, groupBoundData, guiObjects, measureOverride);
+         this.addMeasure(guifyInstance, group, measureOverride);
        })
      }
      this.viewMeasurement(groupBoundData.baseMeasure, false);

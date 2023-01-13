@@ -31,6 +31,7 @@ let generalSettings = new function() {
   this.guiWidth = 325;
   this.guiTheme = 'yorha';
   this.guiAskUnsaved = true;
+  this.allowSnapping = true;
 }();
 
 let crosshairSettings = new function() {
@@ -139,6 +140,12 @@ function setupGui(guifyInstance) {
       type: 'checkbox',
       label: getLocalized('guiAskUnsaved'),
       property: 'guiAskUnsaved',
+      object: generalSettings,
+    },
+    {
+      type: 'checkbox',
+      label: getLocalized('allowSnapping'),
+      property: 'allowSnapping',
       object: generalSettings,
     },
   ]);
@@ -571,7 +578,7 @@ function mouseDragged() {
         let draggedPoint = applicationGlobalState.draggedEndpoints[0];
         draggedPoint.x = mouseVec.x;
         draggedPoint.y = mouseVec.y;
-        if (applicationGlobalState.isAltButtonDown) { return; } // no snapping
+        if (applicationGlobalState.isShiftButtonDown || !generalSettings.allowSnapping) { return; } // no snapping
         let offset = computeOffsetToNearsetPoint(draggedPoint);
         if (abs(offset.x) < snapDistancePx) {
           draggedPoint.x = mouseVec.x + offset.x;
@@ -581,30 +588,32 @@ function mouseDragged() {
         }
       } else {
         const mouseDelta = createVector(movedX/imageViewSettings.zoom, movedY/imageViewSettings.zoom);
-        let lineOffset = createVector(0, 0);
-        let snappedEndpoint = applicationGlobalState.draggedEndpoints[0];
-        let mouseToBegin = p5.Vector.sub(
-          applicationGlobalState.draggedEndpoints[1],
-          snappedEndpoint);
-        let mouseToEnd = p5.Vector.sub(
-          applicationGlobalState.draggedEndpoints[2],
-          snappedEndpoint);
-        if (!applicationGlobalState.isAltButtonDown) { // no snap with ALT
-          let offset = computeOffsetToNearsetPoint(snappedEndpoint);
-          if (abs(offset.x) < lineDistancePx) {
-            lineOffset.x += offset.x;
-          }
-          if (abs(offset.y) < lineDistancePx) {
-            lineOffset.y += offset.y;
-          }
-        }
-        if (lineOffset.magSq() <= 0) {
-          snappedEndpoint.set(mouseVec);
-        } else {
-          snappedEndpoint.add(lineOffset);
-        }
-        applicationGlobalState.draggedEndpoints[1].set(snappedEndpoint).add(mouseToBegin);
-        applicationGlobalState.draggedEndpoints[2].set(snappedEndpoint).add(mouseToEnd);
+        // let lineOffset = createVector(0, 0);
+        // let snappedEndpoint = applicationGlobalState.draggedEndpoints[0];
+        // let mouseToBegin = p5.Vector.sub(
+        //   applicationGlobalState.draggedEndpoints[1],
+        //   snappedEndpoint);
+        // let mouseToEnd = p5.Vector.sub(
+        //   applicationGlobalState.draggedEndpoints[2],
+        //   snappedEndpoint);
+        // if (!applicationGlobalState.isShiftButtonDown) { // no snap with ALT
+        //   let offset = computeOffsetToNearsetPoint(snappedEndpoint);
+        //   if (abs(offset.x) < lineDistancePx) {
+        //     lineOffset.x += offset.x;
+        //   }
+        //   if (abs(offset.y) < lineDistancePx) {
+        //     lineOffset.y += offset.y;
+        //   }
+        // }
+        // if (lineOffset.magSq() <= 0) {
+        //   snappedEndpoint.set(mouseVec);
+        // } else {
+        //   snappedEndpoint.add(lineOffset);
+        // }
+        // applicationGlobalState.draggedEndpoints[1].set(snappedEndpoint).add(mouseToBegin);
+        // applicationGlobalState.draggedEndpoints[2].set(snappedEndpoint).add(mouseToEnd);
+        applicationGlobalState.draggedEndpoints[1].add(mouseDelta);
+        applicationGlobalState.draggedEndpoints[2].add(mouseDelta);
       }
     }
   }
@@ -681,6 +690,9 @@ function keyPressed() {
     applicationGlobalState.isCtrlButtonDown = true;
   } else if (keyCode == SHIFT) {
     applicationGlobalState.isShiftButtonDown = true;
+  } else if (keyCode == ESCAPE) {
+    applicationGlobalState.measurementsGuiComposer
+      .duplicateViewedMeasurement(applicationGlobalState.gui);
   }
 }
 
