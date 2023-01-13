@@ -98,14 +98,14 @@ class ImageAABBView {
 
 function deleteGuify(guifyInstance) {
   if (guifyInstance) {
-    guifyInstance.panel.container.mouseIsOverGui = false;
-    guifyInstance.panel.container.replaceWith(guifyInstance.panel.container.cloneNode(true));
-    guifyInstance.panel.container.onmouseover.onmouseover = () => {};
-    guifyInstance.panel.container.onmouseover.onmouseleave = () => {};
+    delete guifyInstance.panel.container.mouseIsOverGui;
+    // guifyInstance.panel.container.replaceWith(guifyInstance.panel.container.cloneNode(true));
+    // guifyInstance.panel.container.onmouseover.onmouseover = () => {};
+    // guifyInstance.panel.container.onmouseover.onmouseleave = () => {};
     // guifyInstance.panel.container.parentNode.removeChild(guifyInstance.panel.container);
-    guifyInstance.panel.container.remove();
+    // guifyInstance.panel.container.remove();
     // guifyInstance.bar.element.parentNode.removeChild(guifyInstance.bar.element);
-    guifyInstance.bar.element.remove();
+    // guifyInstance.bar.element.remove();
 
     let guifyContainers = document.getElementsByClassName('guify-container');
     for (let element of guifyContainers) {
@@ -131,13 +131,13 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
     opacity: generalSettings.guiOpacity,
     open: true
   });
-  guifyInstance.panel.container.mouseIsOver = false;
+  guifyInstance.panel.container.mouseIsOverGui = false;
   guifyInstance.panel.container.onmouseover = function()   {
     this.mouseIsOverGui = true;
   };
   guifyInstance.panel.container.onmouseleave = function()   {
     this.mouseIsOverGui = false;
-    print('No longer mouse on GUI;')
+    print('No longer mouse on GUI ');
   };
   document.title = getLocalized('title');
   guifyInstance.Register([
@@ -148,7 +148,7 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
       object: generalSettings,
       property: 'language',
       onChange: () => {
-        setupGui(guifyInstance, measurementsGuiComposer);
+        applicationGlobalState.gui = setupGui(guifyInstance, measurementsGuiComposer);
         setCookie('generalSettings', generalSettings)
       },
     },
@@ -257,7 +257,7 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
       object: generalSettings,
       property: 'guiTheme',
       onChange: (data) => {
-        setupGui(guifyInstance, measurementsGuiComposer);
+        applicationGlobalState.gui = setupGui(guifyInstance, measurementsGuiComposer);
         setCookie('generalSettings', generalSettings);
       }
     },
@@ -617,7 +617,7 @@ function windowResized() {
 }
 
 function mouseDragged() {
-  if (applicationGlobalState.gui.panel.container.mouseIsOverGui) {
+  if (applicationGlobalState.gui.panel.container.mouseIsOverGui == true) {
     print('Mouse over GUI');
     return;
   }
