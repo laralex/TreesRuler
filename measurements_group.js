@@ -480,13 +480,13 @@ class MeasureGroupGuiComposer {
      }, onlyVisible);
    }
 
-   allMeasuresToString() {
+   allMeasuresToString({imageRotationDegrees=0}) {
       if (this.groups.length == 0) {
         return null;
       }
       let lines = [];
       this.groups.forEach(group => {
-        this._groupToYaml(group, lines);
+        this._groupToYaml(group, lines, imageRotationDegrees);
       });
       return lines.join('');
    }
