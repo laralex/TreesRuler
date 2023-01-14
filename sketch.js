@@ -18,6 +18,7 @@ let applicationGlobalState = new function() {
   this.measurementsGuiComposer = null;
   this.gui = null;
   this.loadedImage = null;
+  this.loadedImageFilename = null;
   this.shownPopupElement = null;
 }();
 
@@ -100,6 +101,86 @@ class ImageAABBView {
   }
 }
 
+async function showSaveFileDialog(suggestedName, saveSessionId) {
+  const options = {
+    id: saveSessionId,
+    types: [
+      {
+        description: 'Text Files',
+        accept: {
+          'text/plain': ['.txt'],
+        },
+      },
+    ],
+    // startIn: startInFolder,
+    suggestedName: suggestedName,
+  };
+  const handle = await window.showSaveFilePicker(options);
+  return handle;
+}
+
+function showOpenFileDialog(contentCallback) {
+  // const options = {
+  //   id: saveSessionId,
+  //   types: [
+  //     {
+  //       description: 'Text Files',
+  //       accept: {
+  //         'text/plain': ['.txt', '.yaml'],
+  //       },
+  //     },
+  //   ],
+  // };
+  // const handle = await window.showOpenFilePicker(options);
+  // return handle;
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.onchange = e => { 
+    var file = e.target.files[0]; 
+    var reader = new FileReader();
+    reader.readAsText(file,'UTF-8');
+    reader.onload = readerEvent => {
+        var content = readerEvent.target.result;
+        contentCallback(content);
+    }
+  }
+
+  input.click();
+}
+
+function makeCustomMessageBox(text, closeCallback) {
+  if (applicationGlobalState.shownPopupElement) {
+    applicationGlobalState.shownPopupElement.remove();
+  }
+  let div = createSpan();
+  applicationGlobalState.shownPopupElement = div;
+  div.elt.innerText = text;
+  div.style('font-size', '16px');
+  div.style('white-space', 'pre-wrap');
+  div.style('background', '#f0f0f0');
+  div.style('border', '5px solid #C2B280');
+  div.style('padding', '5px');
+  div.style('width', (windowWidth - generalSettings.guiWidth - 60)+'px');
+  div.style('font-family', 'monospace');
+  div.position(15, 30);
+  let button = createButton('X');
+  button.style('position', 'absolute');
+  button.style('top', '15px');
+  button.style('right', '15px');
+  button.style('border', '3px solid #aa0000');
+  button.style('color', '#aa0000');
+  div.child(button);
+  const removePopupElement = () => {
+    if (closeCallback) {
+      closeCallback();
+    }
+    div.remove();
+    button.remove();
+  }
+  div.mousePressed(removePopupElement);
+  button.mousePressed(removePopupElement);
+}
+
 function deleteGuify(guifyInstance) {
   if (guifyInstance) {
     delete guifyInstance.panel.container.mouseIsOverGui;
@@ -149,22 +230,7 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
       type: 'button',
       label: getLocalized('instructionsButton'),
       action: () => {
-        if (applicationGlobalState.shownPopupElement) {
-          applicationGlobalState.shownPopupElement.remove();
-        }
-        let div = createSpan();
-        applicationGlobalState.shownPopupElement = div;
-        div.elt.innerText = getLocalized('instructionsContent');
-        div.style('font-size', '16px');
-        div.style('white-spacвшмe', 'pre-wrap');
-        div.style('background', '#f0f0f0');
-        div.style('border', '5px solid #aa0000');
-        div.style('padding', '5px');
-        div.style('width', (windowWidth - generalSettings.guiWidth - 50)+'px');
-        div.position(15, 30);
-        div.mousePressed(() => {
-          div.remove();
-        });
+        makeCustomMessageBox(getLocalized('instructionsContent'));
       }
     },
     {
@@ -198,6 +264,7 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
       label: getLocalized('openImageFiles'),
       object: this,
       onChange: (data) => {
+        applicationGlobalState.loadedImageFilename = guiFile.fileLabel.innerText;
         if (!generalSettings.guiAskUnsaved || confirm(getLocalized('loosingUnsavedDialog'))) {
           loadTreeImage(data);
         } else {
@@ -219,6 +286,47 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
           applicationGlobalState.measurementsGuiComposer,
           applicationGlobalState.loadedImage.width,
           applicationGlobalState.loadedImage.height)
+      }
+  });
+  guifyInstance.Register({
+    type: 'button',
+      label: getLocalized('guiSaveMeasurements'),
+      action: () => {
+        let fn = applicationGlobalState.loadedImageFilename;
+        let fnBase = fn.substr(0, fn.lastIndexOf('.')) || fn;
+        let newFileName = fnBase + '.txt';
+        let measuresString = applicationGlobalState.measurementsGuiComposer.allMeasuresToString();
+        let messageBoxCloseFunc = () => {
+          if (confirm(getLocalized('saveMeasurementsDialog'))) {
+            (async function() {
+              let handle = await showSaveFileDialog(newFileName, 'save-measures');
+              let writable = await handle.createWritable();
+              await writable.write(measuresString);
+              await writable.close();
+            })();
+          }
+        }
+        if (!measuresString) {
+          measuresString = getLocalized("noMeasuresMessage");
+          messageBoxCloseFunc = null;
+        }
+        print(measuresString.replace(' ', '&nbsp;'));
+        makeCustomMessageBox(measuresString, messageBoxCloseFunc);
+      }
+  });
+  guifyInstance.Register({
+    type: 'button',
+      label: getLocalized('guiLoadMeasurements'),
+      action: () => {
+          showOpenFileDialog((fileContent) => {
+            print(fileContent);
+            try {
+              let obj = YAML.parse(fileContent);
+              print(obj);
+            } catch {
+              window.alert(getLocalized('measurementsFileParseFailDialog'))
+            }
+          });
       }
   });
   guifyInstance.Register([
@@ -417,19 +525,27 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
 
 
 
-function loadTreeImage(uri) {
-  loadImage(uri, newImg => {
-    applicationGlobalState.loadedImage = newImg;
-    resetZoom();
-    if (applicationGlobalState.measurementsGuiComposer) {
-      applicationGlobalState.nextGroupName = getLocalized('defaultGroupName')+1;
-      applicationGlobalState.measurementsGuiComposer.removeAllGroups(applicationGlobalState.gui);
-      applicationGlobalState.measurementsGuiComposer.updateViewGui(
-        applicationGlobalState.loadedImage.width, 
-        applicationGlobalState.loadedImage.height);
-    }
-    print('Loaded image', uri.slice(0, 100));
-  });
+function loadTreeImage(uriOrBase64, isFilePath) {
+  try {
+    loadImage(uriOrBase64, newImg => {
+      applicationGlobalState.loadedImage = newImg;
+      if (isFilePath) {
+        let fp = uriOrBase64.replace(/[\\/]+/g, '/'); // normalize slashes
+        applicationGlobalState.loadedImageFilename = fp.substr(fp.lastIndexOf('/')+1) || fp;
+      }
+      resetZoom();
+      if (applicationGlobalState.measurementsGuiComposer) {
+        applicationGlobalState.nextGroupName = getLocalized('defaultGroupName')+1;
+        applicationGlobalState.measurementsGuiComposer.removeAllGroups(applicationGlobalState.gui);
+        applicationGlobalState.measurementsGuiComposer.updateViewGui(
+          applicationGlobalState.loadedImage.width, 
+          applicationGlobalState.loadedImage.height);
+      }
+      print('Loaded image', uriOrBase64.slice(0, 100));
+    });
+  } catch {
+    window.alert(getLocalized('imageOpenErrorDialog'));
+  }
 }
 
 function resetZoom() {
@@ -480,7 +596,7 @@ function setup() {
   applicationGlobalState.gui = setupGui(
     applicationGlobalState.gui,
     applicationGlobalState.measurementsGuiComposer);
-  loadTreeImage('./assets/example_trees/000001.jpg');
+  loadTreeImage('./assets/example_trees/000001.jpg', true);
 }
 
 function drawCrosshair({x=0, y=0, beginOffset=0, endOffset=0, colorHexStr="#00000000", blendingMode=BLEND}) {
@@ -611,7 +727,6 @@ function updateMeasurementsLengths() {
 
 function drawImage() {
   let imgViewBbox = applicationGlobalState.imgView.getScreenBbox();
-  push();
   let dx = imgViewBbox.left+imgViewBbox.width / 2,
       dy = imgViewBbox.top+imgViewBbox.height / 2
       translate(dx, dy);
@@ -621,7 +736,6 @@ function drawImage() {
   image(applicationGlobalState.loadedImage,
     imgViewBbox.left, imgViewBbox.top,
     imgViewBbox.width, imgViewBbox.height);
-  pop();
 }
 
 function draw() {
@@ -633,7 +747,9 @@ function draw() {
       applicationGlobalState.loadedImage.height,
       windowWidth, windowHeight,
       imageViewSettings.zoom, imageViewSettings.panX, imageViewSettings.panY);
+    push();
     drawImage();
+    pop();
     let imgViewBbox = applicationGlobalState.imgView.getScreenBbox();
     if (!applicationGlobalState.isCtrlButtonDown) {
       drawMeasurements(imgViewBbox.left, imgViewBbox.top, imageViewSettings.zoom);

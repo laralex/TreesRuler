@@ -479,4 +479,80 @@ class MeasureGroupGuiComposer {
        func(measure.end);
      }, onlyVisible);
    }
+
+   allMeasuresToString() {
+      if (this.groups.length == 0) {
+        return null;
+      }
+      let lines = [];
+      this.groups.forEach(group => {
+        this._groupToYaml(group, lines);
+      });
+      return lines.join('');
+   }
+
+   _groupToYaml(group, destinationArray, imageRotationDegrees) {
+    let groupFolder = group.groupFolder;
+    let guiObjects = group.guiObjects;
+    let groupBoundData = group.data;
+    const measureToString = (measure, prefix, firstPrefix) => {
+      destinationArray.push(firstPrefix + getLocalized('toStringDenotation'), ': ',measure.denotationOverride, '\n');
+      destinationArray.push(prefix + getLocalized('toStringBegin'), ': [',
+        measure.begin.x, ',', measure.begin.y, ']\n');
+      destinationArray.push(prefix + getLocalized('toStringEnd'), ': [',
+        measure.end.x, ',', measure.end.y, ']\n');
+    }
+    destinationArray.push('- ' + getLocalized('toStringGroup'), ': "', groupFolder, '"\n');
+
+    // reproducibility meta info
+    destinationArray.push('  ' + getLocalized('toStringNumMeasurements'), ': ', groupBoundData.measures.length + 1, '\n');
+    destinationArray.push('  ' + getLocalized('toStringRotation'), ': ', imageRotationDegrees, '\n');
+    destinationArray.push('  ' + getLocalized('toStringBaseMeasure'), ':\n');
+    measureToString(groupBoundData.baseMeasure, '    ', '    ');
+    destinationArray.push('  ' + getLocalized('toStringMeasures'), ':\n');
+    groupBoundData.measures.forEach(measure => {
+      measureToString(measure, '    ', '  - ');
+    });
+
+    // table
+    destinationArray.push('  ' + getLocalized('toStringTableView'), ': >\n');
+    let tableBegin = destinationArray.length;
+    this._groupToStringArray(group, destinationArray, '    ');
+    let tableEnd = destinationArray.length;
+    for(var i = tableBegin; i < tableEnd; ++i) {
+      destinationArray[i] = '    ' + destinationArray[i];
+    }
+
+    destinationArray.push('\n')
+   }
+
+   _groupToStringArray(group, destinationArray) {
+    let groupBoundData = group.data;
+    let measuresSorted = groupBoundData.measures.slice(0)
+      .sort(function(a, b) { 
+        if (a.relativeLength < b.relativeLength) return 1;
+        else if (a.relativeLength > b.relativeLength) return -1;
+        return 0;
+      });
+    
+    let padName = max(getLocalized('toStringMeasurementName').length + 1, 20);
+    let padLength = max(getLocalized('toStringRelativeLength').length + 1, 7);
+    let padAbsLength = max(getLocalized('toStringAbsoluteLength').length + 1, 7);
+    destinationArray.push(getLocalized('toStringMeasurementName').padEnd(padName));
+    destinationArray.push(getLocalized('toStringRelativeLength').padEnd(padLength));
+    destinationArray.push(getLocalized('toStringAbsoluteLength').padEnd(padAbsLength));
+    destinationArray.push('\n');
+    const measureToString = (measure) => {
+      destinationArray.push((measure.denotationOverride || "").padEnd(padName));
+      destinationArray.push(measure.relativeLength.toString().substr(0, padLength-1).padEnd(padLength));
+      destinationArray.push(measure.absoluteLength.toString().substr(0, padAbsLength-1).padEnd(padAbsLength));
+      destinationArray.push('\n');
+    }
+    measureToString(groupBoundData.baseMeasure);
+    measuresSorted.forEach(measure => measureToString(measure));
+    // destinationArray.push(getLocalized('toStringBeginX').padEnd(padCoord));
+    // destinationArray.push(getLocalized('toStringBeginY').padEnd(padCoord));
+    // destinationArray.push(getLocalized('toStringEndX').padEnd(padCoord));
+    // destinationArray.push(getLocalized('toStringEndY').padEnd(padCoord), '\n');
+   }
  }
