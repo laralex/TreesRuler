@@ -4,6 +4,33 @@ function tryCatch(func, failFunc) {
    catch(e) { return failFunc(e) }
 }
 
+function loadMeasurementsFromYamlDump(guifyInstance, measurementsGuiComposer, parsedContent) {
+  measurementsGuiComposer.removeAllGroups(guifyInstance);
+  const makeLine = function(measureYamlContent) {
+     return {
+      begin: createVector(...measureYamlContent[getLocalized('toStringBegin')]),
+      end: createVector(...measureYamlContent[getLocalized('toStringEnd')]),
+      denotationOverride: measureYamlContent[getLocalized('toStringDenotation')] || null,
+     };
+  }
+
+  parsedContent.forEach(group => {
+    let groupFolder = group[getLocalized('toStringGroup')];
+    let baseMeasure = makeLine(group[getLocalized('toStringBaseMeasure')]);
+    let measuresArray = group[getLocalized('toStringMeasures')];
+    if (!measuresArray) {
+      measuresArray = [];
+    }
+    measuresArray = measuresArray.map(measureObj => makeLine(measureObj));
+    print(measuresArray);
+    let newGroup = measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
+     groupFolder,
+     baseMeasure.denotationOverride[0], // TODO: hack
+     baseMeasure, measuresArray);
+    newGroup.data.measuresAddedCounter = 0;
+  });
+}
+
 function loadMeasurementsPreset(guifyInstance, measurementsGuiComposer, imageWidth, imageHeight) {
    measurementsGuiComposer.removeAllGroups(guifyInstance);
    const w = imageWidth, h = imageHeight;

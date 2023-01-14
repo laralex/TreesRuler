@@ -313,7 +313,6 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
           measuresString = getLocalized("noMeasuresMessage");
           messageBoxCloseFunc = null;
         }
-        print(measuresString.replace(' ', '&nbsp;'));
         makeCustomMessageBox(measuresString, messageBoxCloseFunc);
       }
   });
@@ -322,13 +321,22 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
       label: getLocalized('guiLoadMeasurements'),
       action: () => {
           showOpenFileDialog((fileContent) => {
-            print(fileContent);
-            try {
-              let obj = YAML.parse(fileContent);
-              print(obj);
-            } catch {
-              window.alert(getLocalized('measurementsFileParseFailDialog'))
+            let parsedObj;
+            // try {
+              parsedObj = YAML.parse(fileContent);
+            // } catch {
+              // window.alert(getLocalized('measurementsFileParseFailDialog'))
+            // }
+            loadMeasurementsFromYamlDump(
+              applicationGlobalState.gui,
+              applicationGlobalState.measurementsGuiComposer,
+              parsedObj);
+            let rotation = 0;
+            if (parsedObj.length > 0) {
+              rotation = parsedObj[0][getLocalized('toStringRotation')] || 0;
             }
+            imageViewSettings.rotationDegrees = abs(rotation);
+            imageViewSettings.rotationIsClockwise = rotation >= 0;
           });
       }
   });
