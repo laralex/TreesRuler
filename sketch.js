@@ -295,7 +295,10 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
         let fn = applicationGlobalState.loadedImageFilename;
         let fnBase = fn.substr(0, fn.lastIndexOf('.')) || fn;
         let newFileName = fnBase + '.txt';
-        let measuresString = applicationGlobalState.measurementsGuiComposer.allMeasuresToString();
+        let imageRotationDegrees = imageViewSettings.rotationDegrees * (imageViewSettings.rotationIsClockwise ? 1 : -1);
+        let measuresString = applicationGlobalState.measurementsGuiComposer.allMeasuresToString(
+          {imageRotationDegrees: imageRotationDegrees},
+        );
         let messageBoxCloseFunc = () => {
           if (confirm(getLocalized('saveMeasurementsDialog'))) {
             (async function() {
