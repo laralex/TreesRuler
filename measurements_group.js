@@ -25,7 +25,7 @@ function loadMeasurementsFromYamlDump(guifyInstance, measurementsGuiComposer, pa
     print(measuresArray);
     let newGroup = measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
      groupFolder,
-     baseMeasure.denotationOverride[0], // TODO: hack
+     (baseMeasure.denotationOverride || 'a')[0], // TODO: hack
      baseMeasure, measuresArray);
     newGroup.data.measuresAddedCounter = 0;
   });

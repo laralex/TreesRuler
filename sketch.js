@@ -29,7 +29,7 @@ let generalSettings = new function() {
   this.textWidth = 20;
   this.textFloatPrecision = 3;
   this.guiOpacity = 0.9;
-  this.guiWidth = 325;
+  this.guiWidth = 400;
   this.guiTheme = 'yorha';
   this.guiAskUnsaved = true;
   this.allowSnapping = true;
@@ -44,6 +44,15 @@ let crosshairSettings = new function() {
   this.invertColor = true;
 }();
 let crosshairSettingsDefaults = Object.assign({}, crosshairSettings);
+
+let gridSettings = new function() {
+  this.gridEnabled = true;
+  this.gridHeightInterval = [300, 2000];
+  this.gridWidthInterval = [0, 1];
+  this.gridNumOfInnerLines = 20;
+  this.gridColor = '#aaffff';
+}();
+let gridSettingsDefaults = Object.assign({}, gridSettings);
 
 let imageViewSettings = new function() {
   this.panX = 0;
@@ -241,7 +250,7 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
       property: 'language',
       onChange: () => {
         applicationGlobalState.gui = setupGui(guifyInstance, measurementsGuiComposer);
-        setCookie('generalSettings', generalSettings)
+        setCookie('generalSettings', generalSettings);
       },
     },
     {
@@ -352,10 +361,15 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
         applicationGlobalState.gui = setupGui(
           applicationGlobalState.gui,
           applicationGlobalState.measurementsGuiComposer);
+        updateGridGui(
+          applicationGlobalState.loadedImage.width,
+          applicationGlobalState.loadedImage.height,
+        );
         // window.alert(getLocalized('resetSettingsPopup'));
       }
     },
     { type: 'folder', label: getLocalized('imageViewFolder'),  folder: getLocalized('settingsFolder'), open: false },
+    { type: 'folder', label: getLocalized('gridFolder'),  folder: getLocalized('settingsFolder'), open: false },
     { type: 'folder', label: getLocalized('lineFolder'),  folder: getLocalized('settingsFolder'), open: false },
     { type: 'folder', label: getLocalized('guiFolder'), folder: getLocalized('settingsFolder'), open: false },
     { type: 'folder', label: getLocalized('crosshairFolder'),  folder: getLocalized('settingsFolder'), open: false },
@@ -385,7 +399,7 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
     {
       type: 'select',
       label: getLocalized('guiWidth'),
-      options: [250, 325, 375, 600],
+      options: [250, 325, 400, 600],
       object: generalSettings,
       property: 'guiWidth',
       onInitialize: guiWidthInitFunc,
@@ -433,6 +447,38 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
       property: 'rotationIsClockwise'
     }
   ], { object: imageViewSettings, folder: getLocalized('imageViewFolder') });
+
+  guifyInstance.Register([
+    {
+      type: 'checkbox', label: getLocalized('gridEnabled'), 
+      property: 'gridEnabled',
+      onChange: (data) => {
+        setCookie('gridSettings', gridSettings);
+      }
+    },
+    {
+      type: 'interval', label: getLocalized('gridHeightInterval'),
+      property: 'gridHeightInterval',
+      min: 0, max: 1000, precision: 0, step: 1,
+      onChange: (data) => {
+        setCookie('gridSettings', gridSettings);
+      }
+    },
+    {
+      type: 'range',label: getLocalized('gridNumOfInnerLines'),
+      property: 'gridNumOfInnerLines', min: 0, max: 50, step: 1,
+      onChange: (data) => {
+        setCookie('gridSettings', gridSettings);
+      }
+    },
+    {
+      type: 'color', label: getLocalized('gridColor'),
+      property: 'gridColor', format: 'hex',
+      onChange: (data) => {
+        setCookie('gridSettings', gridSettings);
+      }
+    },
+  ], { object: gridSettings, folder: getLocalized('gridFolder') });
 
   guifyInstance.Register([
     {
@@ -519,6 +565,7 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
   const img = applicationGlobalState.loadedImage;
   if (img) {
     measurementsGuiComposer.updateViewGui(img.width, img.height);
+    updateGridGui(img.width, img.height);
   }
   measurementsGuiComposer.groups.forEach(group => {
     measurementsGuiComposer._addGroupGui(guifyInstance, getLocalized('measuresFolder'), group);
@@ -548,15 +595,27 @@ function loadTreeImage(uriOrBase64, isFilePath) {
       if (applicationGlobalState.measurementsGuiComposer) {
         applicationGlobalState.nextGroupName = getLocalized('defaultGroupName')+1;
         applicationGlobalState.measurementsGuiComposer.removeAllGroups(applicationGlobalState.gui);
-        applicationGlobalState.measurementsGuiComposer.updateViewGui(
-          applicationGlobalState.loadedImage.width, 
-          applicationGlobalState.loadedImage.height);
+        let w = applicationGlobalState.loadedImage.width,
+            h = applicationGlobalState.loadedImage.height
+        applicationGlobalState.measurementsGuiComposer.updateViewGui(w, h);
+        updateGridGui(w, h);
       }
       print('Loaded image', uriOrBase64.slice(0, 100));
     });
   } catch {
     window.alert(getLocalized('imageOpenErrorDialog'));
   }
+}
+
+function updateGridGui(imageWidth, imageHeight) {
+  let intervalComponent = applicationGlobalState.gui.loadedComponents.find(component => 
+    component.opts.label == getLocalized('gridHeightInterval'));
+  intervalComponent.max = intervalComponent.maxPos = intervalComponent.input.max = imageHeight;
+  gridSettings.gridHeightInterval[1] = min(imageHeight, gridSettings.gridHeightInterval[1]);
+  intervalComponent.SetValue(gridSettings.gridHeightInterval);
+  intervalComponent._RefreshHandles();
+  gridSettings.gridWidthInterval = [0, imageWidth];
+  // intervalComponent.input.oninput();
 }
 
 function resetZoom() {
@@ -572,12 +631,17 @@ function resetZoom() {
 function loadSettingsFromCookies() {
   let settings = getCookie('generalSettings');
   if (settings !== undefined) {
-    generalSettings = settings;
+    Object.assign(generalSettings, settings);
     print('Cookies: Loaded general settings');
   }
   settings = getCookie('crosshairSettings');
   if (settings !== undefined) {
-    crosshairSettings = settings;
+    Object.assign(crosshairSettings, settings);
+    print('Cookies: Loaded crosshair settings');
+  }
+  settings = getCookie('gridSettings');
+  if (settings !== undefined) {
+    Object.assign(gridSettings, settings);
     print('Cookies: Loaded crosshair settings');
   }
 }
@@ -590,6 +654,10 @@ function loadSettingsFromDefaults() {
   if (crosshairSettingsDefaults !== undefined) {
     Object.assign(crosshairSettings, crosshairSettingsDefaults);
     print('Defaults: Loaded crosshair settings');
+  }
+  if (gridSettingsDefaults !== undefined) {
+    Object.assign(gridSettings, gridSettingsDefaults);
+    print('Defaults: Loaded grid settings');
   }
 }
 
@@ -721,6 +789,48 @@ function drawMeasurements(panX, panY, zoom) {
   pop();
 }
 
+function drawGrid(panX, panY, zoom) {
+  push();
+  let gridColor = color(gridSettings.gridColor);
+  const colorReducer = 25;
+  let accentuatedColor = color(
+    gridColor._getRed()-colorReducer,
+    gridColor._getGreen()-colorReducer,
+    gridColor._getBlue()-colorReducer, 255);
+  let lineWidth = generalSettings.lineWidth * (log(zoom+1)) / 3;
+  textSize(generalSettings.textWidth);
+  fill(gridColor);
+  stroke(gridColor);
+  strokeWeight(lineWidth);
+  const drawBorder = (lineCoords) => {
+    stroke(accentuatedColor);
+    strokeWeight(2*lineWidth);
+    drawingContext.setLineDash([10, 10]);
+    line(...lineCoords);
+  }
+  const drawInner = (i, lineCoords) => {
+    line(...lineCoords);
+    textFont(assets.font);
+    text(i.toString(), lineCoords[0] - 25, lineCoords[1]);
+  }
+  forEachGridLine(panX, panY, zoom, drawBorder, drawInner, drawBorder);
+  pop();
+}
+
+function forEachGridLine(panX, panY, zoom, callbackFirst, callbackInner, callbackLast) {
+  let hLow = (gridSettings.gridHeightInterval[0])*zoom + panY,// + panX,
+      hHigh = (gridSettings.gridHeightInterval[1])*zoom + panY,
+      wLow = (gridSettings.gridWidthInterval[0])*zoom + panX,
+      wHigh = (gridSettings.gridWidthInterval[1])*zoom + panX;
+  let nLines = gridSettings.gridNumOfInnerLines + 1;
+  let hDelta = (hHigh - hLow)/nLines;
+  for (var i = 1; i < nLines; ++i) {
+    let y = hLow + i*hDelta;
+    callbackInner(i, [wLow, y, wHigh, y]);
+  }
+  callbackFirst([wLow, hLow, wHigh, hLow]);
+  callbackLast([wLow, hHigh, wHigh, hHigh]);
+}
 
 function updateMeasurementsLengths() {
   applicationGlobalState.measurementsGuiComposer.groups.forEach(group => {
@@ -762,6 +872,9 @@ function draw() {
     drawImage();
     pop();
     let imgViewBbox = applicationGlobalState.imgView.getScreenBbox();
+    if (gridSettings.gridEnabled && !applicationGlobalState.isCtrlButtonDown) {
+      drawGrid(imgViewBbox.left, imgViewBbox.top, imageViewSettings.zoom);
+    }
     if (!applicationGlobalState.isCtrlButtonDown) {
       drawMeasurements(imgViewBbox.left, imgViewBbox.top, imageViewSettings.zoom);
     }

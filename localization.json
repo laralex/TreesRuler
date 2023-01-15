@@ -17,7 +17,7 @@
    },
    "crosshairEnabled": {
       "ENG": "Crosshair Enabled",
-      "RUS": "Вкл. курсор"
+      "RUS": "Курсор включ."
    },
    "crosshairRadius": {
       "ENG": "Radius",
@@ -246,6 +246,26 @@
    "title": {
       "ENG": "Trees Ruler",
       "RUS": "Метрия деревьев"
+   },
+   "gridColor": {
+      "ENG": "Grid color",
+      "RUS": "Цвет сетки"
+   },
+   "gridFolder": {
+      "ENG": "Grid settings",
+      "RUS": "Настройки сетки"
+   },
+   "gridHeightInterval": {
+      "ENG": "Vertical limits",
+      "RUS": "Верх / Низ"
+   },
+   "gridNumOfInnerLines": {
+      "ENG": "Num. of segments",
+      "RUS": "Число сегментов"
+   },
+   "gridEnabled": {
+      "ENG": "Grid enabled",
+      "RUS": "Сетка включ."
    },
    "imageRotation": {
       "ENG": "Rotation (degrees)",
