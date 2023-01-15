@@ -26,7 +26,7 @@ let applicationGlobalState = new function() {
 // bound to be visualized in GUI, and receiving new values from GUI
 let generalSettings = new function() {
   this.language = 'Russian';
-  this.lineWidth = 6;
+  this.lineWidth = 8;
   this.textWidth = 20;
   this.textFloatPrecision = 3;
   this.guiOpacity = 0.9;
@@ -737,10 +737,14 @@ function drawMeasurement(lineColor, groupDenotation, measurementData, panX, panY
   line(endX - perpX, endY - perpY, endX + perpX, endY + perpY);
 
   // main line
+  // if (isBaseMeasurement) {
+  //   drawingContext.setLineDash([5, 10, 30, 5]);
+  // }
   line(beginX, beginY, endX, endY);
 
   // endpoints dots
   stroke(0, 0, 0);
+  strokeWeight(5);
   point(beginX, beginY);
   point(endX, endY);
 
