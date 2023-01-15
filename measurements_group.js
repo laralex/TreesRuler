@@ -18,6 +18,8 @@ function loadMeasurementsFromYamlDump(guifyInstance, measurementsGuiComposer, pa
     let groupFolder = group[getLocalized('toStringGroup')];
     let baseMeasure = makeLine(group[getLocalized('toStringBaseMeasure')]);
     let measuresArray = group[getLocalized('toStringMeasures')];
+    let baseAbsoluteLength = group[getLocalized('toStringAbsoluteLength')];
+    print('@', baseAbsoluteLength);
     if (!measuresArray) {
       measuresArray = [];
     }
@@ -26,7 +28,7 @@ function loadMeasurementsFromYamlDump(guifyInstance, measurementsGuiComposer, pa
     let newGroup = measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
      groupFolder,
      (baseMeasure.denotationOverride || 'a')[0], // TODO: hack
-     baseMeasure, measuresArray);
+     baseMeasure, measuresArray, baseAbsoluteLength);
     newGroup.data.measuresAddedCounter = 0;
   });
 }
@@ -421,7 +423,7 @@ class MeasureGroupGuiComposer {
         measureData.guiObjects = measureGuiObjects;
     }
   }
-   newGroup(guifyInstance, parentFolder, groupFolder, groupDenotation, baseDefaultCoords, measuresDefaultCoords) {
+   newGroup(guifyInstance, parentFolder, groupFolder, groupDenotation, baseDefaultCoords, measuresDefaultCoords, baseAbsoluteLength) {
      let guiObjects = [];
      guiObjects.push(guifyInstance.Register({
        type: 'folder',
@@ -452,7 +454,7 @@ class MeasureGroupGuiComposer {
          end: createVector(300+Math.random()*700, 300+Math.random()*700),
          denotationOverride: null,
          guiObjects: null},
-       baseAbsoluteLength: 1.0,
+       baseAbsoluteLength: baseAbsoluteLength || 1.0,
        measuresAddedCounter: 0,
        measures: []
      };
@@ -544,6 +546,7 @@ class MeasureGroupGuiComposer {
 
     // reproducibility meta info
     destinationArray.push('  ' + getLocalized('toStringNumMeasurements'), ': ', groupBoundData.measures.length + 1, '\n');
+    destinationArray.push('  ' + getLocalized('toStringAbsoluteLength'), ': ', groupBoundData.baseAbsoluteLength, '\n');
     destinationArray.push('  ' + getLocalized('toStringRotation'), ': ', imageRotationDegrees, '\n');
     destinationArray.push('  ' + getLocalized('toStringBaseMeasure'), ':\n');
     measureToString(groupBoundData.baseMeasure, '    ', '    ');
@@ -574,11 +577,11 @@ class MeasureGroupGuiComposer {
       });
     
     let padName = max(getLocalized('toStringMeasurementName').length + 1, 20);
-    let padLength = max(getLocalized('toStringRelativeLength').length + 1, 7);
-    let padAbsLength = max(getLocalized('toStringAbsoluteLength').length + 1, 7);
+    let padLength = max(getLocalized('toStringRelativeLengthTable').length + 1, 7);
+    let padAbsLength = max(getLocalized('toStringAbsoluteLengthTable').length + 1, 7);
     destinationArray.push(getLocalized('toStringMeasurementName').padEnd(padName));
-    destinationArray.push(getLocalized('toStringRelativeLength').padEnd(padLength));
-    destinationArray.push(getLocalized('toStringAbsoluteLength').padEnd(padAbsLength));
+    destinationArray.push(getLocalized('toStringRelativeLengthTable').padEnd(padLength));
+    destinationArray.push(getLocalized('toStringAbsoluteLengthTable').padEnd(padAbsLength));
     destinationArray.push('\n');
     const measureToString = (measure) => {
       destinationArray.push((measure.denotationOverride || "").padEnd(padName));

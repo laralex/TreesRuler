@@ -311,17 +311,21 @@
       "ENG": "Measurement",
       "RUS": "Замер"
    },
-   "toStringRelativeLength": {
+   "toStringRelativeLengthTable": {
       "ENG": "RelativeLength",
       "RUS": "ОтноситДлина"
    },
-   "toStringAbsoluteLength": {
+   "toStringAbsoluteLengthTable": {
       "ENG": "AbsoluteLength",
       "RUS": "АбсолютнДлина"
    },
    "toStringDenotation": {
       "ENG": "denotation",
       "RUS": "обозначение"
+   },
+   "toStringAbsoluteLength": {
+      "ENG": "unit_absolute_length",
+      "RUS": "абсолютная_длина_базиса"
    },
    "toStringBegin": {
       "ENG": "begin_point_px",
