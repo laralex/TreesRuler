@@ -14,6 +14,7 @@ let applicationGlobalState = new function() {
   this.isAltButtonDown = false;
   this.isShiftButtonDown = false;
   this.draggedEndpoints = null;
+  this.draggedGrid = null;
   this.imgView = null;
   this.measurementsGuiComposer = null;
   this.gui = null;
@@ -25,7 +26,7 @@ let applicationGlobalState = new function() {
 // bound to be visualized in GUI, and receiving new values from GUI
 let generalSettings = new function() {
   this.language = 'Russian';
-  this.lineWidth = 10;
+  this.lineWidth = 6;
   this.textWidth = 20;
   this.textFloatPrecision = 3;
   this.guiOpacity = 0.9;
@@ -50,6 +51,7 @@ let gridSettings = new function() {
   this.gridHeightInterval = [300, 2000];
   this.gridWidthInterval = [0, 1];
   this.gridNumOfInnerLines = 20;
+  this.gridNumOfVerticalLines = 5;
   this.gridColor = '#aaffff';
 }();
 let gridSettingsDefaults = Object.assign({}, gridSettings);
@@ -472,6 +474,13 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
       }
     },
     {
+      type: 'range',label: getLocalized('gridNumOfVerticalLines'),
+      property: 'gridNumOfVerticalLines', min: 0, max: 50, step: 1,
+      onChange: (data) => {
+        setCookie('gridSettings', gridSettings);
+      }
+    },
+    {
       type: 'color', label: getLocalized('gridColor'),
       property: 'gridColor', format: 'hex',
       onChange: (data) => {
@@ -802,7 +811,7 @@ function drawGrid(panX, panY, zoom) {
   fill(gridColor);
   stroke(gridColor);
   strokeWeight(lineWidth);
-  const drawBorder = (lineCoords) => {
+  const drawBorder = (i, lineCoords) => {
     stroke(accentuatedColor);
     strokeWeight(2*lineWidth);
     drawingContext.setLineDash([10, 10]);
@@ -813,23 +822,32 @@ function drawGrid(panX, panY, zoom) {
     textFont(assets.font);
     text(i.toString(), lineCoords[0] - 25, lineCoords[1]);
   }
-  forEachGridLine(panX, panY, zoom, drawBorder, drawInner, drawBorder);
+  forEachGridLine(panX, panY, zoom, drawInner, drawBorder);
   pop();
 }
 
-function forEachGridLine(panX, panY, zoom, callbackFirst, callbackInner, callbackLast) {
+function forEachGridLine(panX, panY, zoom, callbackInner, callbackBorder) {
   let hLow = (gridSettings.gridHeightInterval[0])*zoom + panY,// + panX,
       hHigh = (gridSettings.gridHeightInterval[1])*zoom + panY,
       wLow = (gridSettings.gridWidthInterval[0])*zoom + panX,
       wHigh = (gridSettings.gridWidthInterval[1])*zoom + panX;
+  // horizontals
   let nLines = gridSettings.gridNumOfInnerLines + 1;
   let hDelta = (hHigh - hLow)/nLines;
   for (var i = 1; i < nLines; ++i) {
     let y = hLow + i*hDelta;
     callbackInner(i, [wLow, y, wHigh, y]);
   }
-  callbackFirst([wLow, hLow, wHigh, hLow]);
-  callbackLast([wLow, hHigh, wHigh, hHigh]);
+  const callbackBorderFn = callbackBorder || callbackInner
+  callbackBorderFn(0, [wLow, hLow, wHigh, hLow]);
+  callbackBorderFn(nLines, [wLow, hHigh, wHigh, hHigh]);
+  // verticals
+  const nVerticals = gridSettings.gridNumOfVerticalLines;
+  const xDelta = (wHigh - wLow)/(nVerticals+1);
+  for (var i = 1; i < nVerticals+1; ++i) {
+    let x = wLow + i*xDelta;
+    callbackBorderFn(0, [x, hLow, x, hHigh]);
+  }
 }
 
 function updateMeasurementsLengths() {
@@ -916,10 +934,10 @@ function mouseDragged() {
     imageViewSettings.panX -= movedX/imgViewBbox.width;
     imageViewSettings.panY -= movedY/imgViewBbox.height;
   } else if (mouseButton === LEFT) {
+    let mouseVec = createVector(
+      (mouseX-imgViewBbox.left)/imageViewSettings.zoom,
+      (mouseY-imgViewBbox.top)/imageViewSettings.zoom);
     if (applicationGlobalState.draggedEndpoints) {
-      let mouseVec = createVector(
-        (mouseX-imgViewBbox.left)/imageViewSettings.zoom,
-        (mouseY-imgViewBbox.top)/imageViewSettings.zoom);
       var snapDistancePx = 10/imageViewSettings.zoom;
       var lineDistancePx = 5/imageViewSettings.zoom;
       const computeOffsetToNearsetPoint = function(fromPoint, ignorePoints) {
@@ -940,6 +958,9 @@ function mouseDragged() {
           }
         }
         applicationGlobalState.measurementsGuiComposer.forEachPoint(computeSnapping, true);
+        // snap to grid levels
+        forEachGridLine(0, 0, 1.0,(lineIdx, lineCoords) =>
+          computeSnapping(createVector(lineCoords[0], lineCoords[1])));
         // snap to image borders
         computeSnapping(createVector(0, 0));
         computeSnapping(createVector(
@@ -988,6 +1009,12 @@ function mouseDragged() {
         applicationGlobalState.draggedEndpoints[1].add(mouseDelta);
         applicationGlobalState.draggedEndpoints[2].add(mouseDelta);
       }
+    } else if (applicationGlobalState.draggedGrid != null) {
+      // drag grid limits
+      let draggedInterval = applicationGlobalState.draggedGrid.interval;
+      let draggedCoord = applicationGlobalState.draggedGrid.intervalCoord;
+      let isX = applicationGlobalState.draggedGrid.isX;
+      draggedInterval[draggedCoord] = isX ? mouseVec.x : mouseVec.y;
     }
   }
 }
@@ -1047,13 +1074,26 @@ function mousePressed() {
     const onlyVisible = true;
     applicationGlobalState.measurementsGuiComposer.forEachMeasure(
       measure => checkNearestMeasure(measure), onlyVisible);
-    print('stop');
-    if (nearestEndpoint !== null) {
+    applicationGlobalState.draggedEndpoints = null;
+    applicationGlobalState.measurementsGuiComposer.viewMeasurement(null);
+    applicationGlobalState.draggedGrid = null;
+    if (nearestEndpoint !== null) { // drag endpoint of measurement
       applicationGlobalState.draggedEndpoints = nearestEndpoint;
       applicationGlobalState.measurementsGuiComposer.viewMeasurement(nearestEndpointMeasurement);
-    } else {
+    } else if (nearestLine !== null) {// drag whole line of measurement
       applicationGlobalState.draggedEndpoints = nearestLine;
       applicationGlobalState.measurementsGuiComposer.viewMeasurement(nearestLineMeasurement);
+    } else { // drag grid limit
+      const targetLineDistance = generalSettings.lineWidth/imageViewSettings.zoom;
+      for (var i = 0; i < 2; ++i) {
+        if (abs(gridSettings.gridHeightInterval[i] - mouseVec.y) < targetLineDistance) {
+          applicationGlobalState.draggedGrid = {
+            interval: gridSettings.gridHeightInterval,
+            intervalCoord: i,
+            isX: false
+          }
+        }
+      }
     }
   }
 }

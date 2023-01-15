@@ -46,7 +46,7 @@ function loadMeasurementsPreset(guifyInstance, measurementsGuiComposer, imageWid
       };
    }
 
-   const hRoot = h-2*hd, h13 = h-3*hd, hDk = h*0.4, hD0 = h*0.75;
+   const hRoot = h-2*hd, h13 = h-3*hd, hDk = h*0.4, hD0 = h*0.6;
    const heightDefaultMeasures = [
       makeLine(w2    , hRoot  , w2   , hd      , 'H'   ), // full height
       makeLine(0+2*wd    , hRoot  , 0+2*wd   , hDk     , 'h_Dk'), // height to crown max
