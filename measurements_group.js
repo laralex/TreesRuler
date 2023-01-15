@@ -31,11 +31,13 @@ function loadMeasurementsFromYamlDump(guifyInstance, measurementsGuiComposer, pa
   });
 }
 
-function loadMeasurementsPreset(guifyInstance, measurementsGuiComposer, imageWidth, imageHeight) {
+function loadMeasurementsPreset(guifyInstance, measurementsGuiComposer, gridSettings) {
    measurementsGuiComposer.removeAllGroups(guifyInstance);
-   const w = imageWidth, h = imageHeight;
-   const w2 = imageWidth / 2, h2 = imageHeight / 2;
-   const wd = imageWidth*0.05, hd = imageHeight*0.05; // deltas
+   const wLow = gridSettings.gridWidthInterval[0], wHigh = gridSettings.gridWidthInterval[1];
+   const hLow = gridSettings.gridHeightInterval[0], hHigh = gridSettings.gridHeightInterval[1];
+   const w = wHigh - wLow, h = hHigh - hLow;
+   const w2 = w*0.5, h2 = h*0.5;
+   const wd = w*0.02, hd = h/gridSettings.gridNumOfInnerLines; // deltas
    const makeLine = function(x0, y0, x1, y1, denotation, boundBegin, boundEnd) {
       return {
       begin: createVector(x0, y0),
@@ -46,21 +48,30 @@ function loadMeasurementsPreset(guifyInstance, measurementsGuiComposer, imageWid
       };
    }
 
-   const hRoot = h-2*hd, h13 = h-3*hd, hDk = h*0.4, hD0 = h*0.6;
+   const hRoot = hHigh, h13 = hHigh-h*0.1, hDk = hHigh - h2 - hd*0.5, hD0 = hHigh-h*0.4;
+   const Dlow = wLow + w*0.1, Dhigh = wHigh - w*0.1;
+   const dlow = w2 - w*0.1, dhigh = w2 + w*0.1;
    const heightDefaultMeasures = [
-      makeLine(w2    , hRoot  , w2   , hd      , 'H'   ), // full height
-      makeLine(0+2*wd    , hRoot  , 0+2*wd   , hDk     , 'h_Dk'), // height to crown max
-      makeLine(0+3*wd    , hRoot  , 0+3*wd   , hD0     , 'h_D0'), // height to crown beginning
-      makeLine(0+4*wd    , hRoot  , 0+4*wd   , h13  , 'h_d1.3'), // height to 1.3 m
+      makeLine(w2    , hHigh  , w2   , hLow      , 'H'   ), // full height
+      makeLine(2*wd    , hHigh  , 0+2*wd   , hDk     , 'h_Dk'), // height to crown max
+      makeLine(3*wd    , hHigh  , 0+3*wd   , hD0     , 'h_D0'), // height to crown beginning
+      makeLine(4*wd    , hHigh  , 0+4*wd   , h13  , 'h_d1.3'), // height to 1.3 m
    ];
    const crownDefaultMeasures = [
-      makeLine(w2-6*wd   , hDk-0*hd , w2+6*wd  , hDk-0*hd    , 'Dk'), // crown max
+      makeLine(Dlow   , hDk, Dhigh  , hDk , 'Dk'), // crown max
    ];
    const trunkDefaultMeasures = [
-     makeLine(w2-1*wd   , h13 , w2+1*wd  , h13  , 'd1.3'), // trunk at height 1.3m
-     makeLine(w2-1*wd   , hD0 , w2+1*wd  , hD0  , 'd_D0'), // trunk at crown beginning
-     makeLine(w2-1*wd   , hDk , w2+1*wd  , hDk  , 'd_Dk'), // trunk at crown max
+     makeLine(dlow   , h13 , dhigh  , h13  , 'd1.3'), // trunk at height 1.3m
+     makeLine(dlow   , hD0 , dhigh  , hD0  , 'd_D0'), // trunk at crown beginning
+     makeLine(dlow   , hDk , dhigh  , hDk  , 'd_Dk'), // trunk at crown max
    ];
+
+   // add measurements for each horizontal grid line
+   forEachGridLine(0, 0, 1.0, (i, gridLine) => {
+     heightDefaultMeasures.push(makeLine(w*0.7 + i*wd, hHigh, w*0.7 + i*wd, gridLine[1]));
+     crownDefaultMeasures.push(makeLine(Dlow, gridLine[1], Dhigh, gridLine[1]));
+     trunkDefaultMeasures.push(makeLine(dlow, gridLine[1], dhigh, gridLine[1]));
+   }, null)
    let newGroup = measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
       getLocalized('heightMeasurementsGroup'),
       'h', heightDefaultMeasures[0], heightDefaultMeasures.slice(1));

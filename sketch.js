@@ -50,8 +50,8 @@ let gridSettings = new function() {
   this.gridEnabled = true;
   this.gridHeightInterval = [300, 2000];
   this.gridWidthInterval = [0, 1];
-  this.gridNumOfInnerLines = 20;
-  this.gridNumOfVerticalLines = 5;
+  this.gridNumOfInnerLines = 5;
+  this.gridNumOfVerticalLines = 1;
   this.gridColor = '#aaffff';
 }();
 let gridSettingsDefaults = Object.assign({}, gridSettings);
@@ -295,8 +295,7 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
         }
         loadMeasurementsPreset(guifyInstance,
           applicationGlobalState.measurementsGuiComposer,
-          applicationGlobalState.loadedImage.width,
-          applicationGlobalState.loadedImage.height)
+          gridSettings);
       }
   });
   guifyInstance.Register({
@@ -842,15 +841,16 @@ function forEachGridLine(panX, panY, zoom, callbackInner, callbackBorder) {
     let y = hLow + i*hDelta;
     callbackInner(i, [wLow, y, wHigh, y]);
   }
-  const callbackBorderFn = callbackBorder || callbackInner
-  callbackBorderFn(0, [wLow, hLow, wHigh, hLow]);
-  callbackBorderFn(nLines, [wLow, hHigh, wHigh, hHigh]);
-  // verticals
-  const nVerticals = gridSettings.gridNumOfVerticalLines;
-  const xDelta = (wHigh - wLow)/(nVerticals+1);
-  for (var i = 1; i < nVerticals+1; ++i) {
-    let x = wLow + i*xDelta;
-    callbackBorderFn(0, [x, hLow, x, hHigh]);
+  if (callbackBorder) {
+    callbackBorder(0, [wLow, hLow, wHigh, hLow]);
+    callbackBorder(nLines, [wLow, hHigh, wHigh, hHigh]);
+    // verticals
+    const nVerticals = gridSettings.gridNumOfVerticalLines;
+    const xDelta = (wHigh - wLow)/(nVerticals+1);
+    for (var i = 1; i < nVerticals+1; ++i) {
+      let x = wLow + i*xDelta;
+      callbackBorder(0, [x, hLow, x, hHigh]);
+    }
   }
 }
 
@@ -964,7 +964,7 @@ function mouseDragged() {
         applicationGlobalState.measurementsGuiComposer.forEachPoint(computeSnapping, true);
         // snap to grid levels
         forEachGridLine(0, 0, 1.0,(lineIdx, lineCoords) =>
-          computeSnapping(createVector(lineCoords[0], lineCoords[1])));
+          computeSnapping(createVector(lineCoords[0], lineCoords[1])), null);
         // snap to image borders
         computeSnapping(createVector(0, 0));
         computeSnapping(createVector(
