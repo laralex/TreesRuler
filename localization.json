@@ -163,6 +163,10 @@
       "ENG": "New group name",
       "RUS": "Новое имя"
    },
+   "guiGroupName": {
+      "ENG": "Rename",
+      "RUS": "Переименовать"
+   },
    "guiLoadMeasurementsPreset": {
       "ENG": "Load measurements preset",
       "RUS": "Поставить шаблонные замеры"
@@ -362,6 +366,10 @@
    "loosingUnsavedDialog": {
       "ENG": "The measurements for this photo will be lost. Continue?",
       "RUS": "Все замеры для этого фото будут сброшены. Продолжить?"
+   },
+   "notUniqueGroupNameDialog": {
+      "ENG": "Please try to type another name for the new group",
+      "RUS": "Пожалуйста попробуйте другое название группы в поле (Новое имя)"
    },
    "measurementsFileParseFailDialog": {
       "ENG": "Couldn't parse the measurements file. Check that it's the file that was previously saved with this application",

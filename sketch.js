@@ -599,7 +599,12 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
       let groupFolder = applicationGlobalState.nextGroupName;
       let nextNameMatch = applicationGlobalState.nextGroupName.match(/(.*?)(\d*)$/);
       applicationGlobalState.nextGroupName = nextNameMatch[1] + (parseInt(nextNameMatch[2])+1 || 1);
-      applicationGlobalState.measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'), groupFolder);
+      try {
+      applicationGlobalState.measurementsGuiComposer.newGroup(guifyInstance,
+         getLocalized('measuresFolder'), groupFolder);
+      } catch {
+        alert(getLocalized('notUniqueGroupNameDialog'));
+      }
     }
   });
 

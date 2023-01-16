@@ -24,11 +24,18 @@ function loadMeasurementsFromYamlDump(guifyInstance, measurementsGuiComposer, pa
     }
     measuresArray = measuresArray.map(measureObj => makeLine(measureObj));
     print(measuresArray);
-    let newGroup = measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
-     groupFolder,
-     (baseMeasure.denotationOverride || 'a')[0], // TODO: hack
-     baseMeasure, measuresArray, baseAbsoluteLength);
-    newGroup.data.measuresAddedCounter = 0;
+    while(true) {
+      try {
+        let newGroup = measurementsGuiComposer.newGroup(
+          guifyInstance, getLocalized('measuresFolder'), groupFolder,
+        (baseMeasure.denotationOverride || 'a')[0], // TODO: hack
+        baseMeasure, measuresArray, baseAbsoluteLength);
+        newGroup.data.measuresAddedCounter = 0;
+        break;
+      } catch {
+        groupFolder = groupFolder + '0';
+      }
+    }
   });
 }
 
@@ -293,10 +300,22 @@ class MeasureGroupGuiComposer {
    }
 
    _changeMeasureDenotation(measure, newDenotation) {
-      print(measure);
       if (measure && measure.guiObjects && measure.guiObjects.length > 0) {
         print('change denotation', newDenotation);
         measure.guiObjects[0].input.textContent = newDenotation;
+      }
+   }
+
+   _changeGroupName(group, newName) {
+      if (group && group.guiObjects && group.guiObjects.length > 0) {
+        let folderObj = group.guiObjects.find(obj => obj.opts.type == 'folder');
+        folderObj.label.innerText = newName;
+        group.data.displayName = newName;
+        // group.groupFolder = newName;
+        // group.guiObjects.forEach(obj => {
+        //   if (obj == folderObj) return;
+        //   obj.opts.folder = newName;
+        // })
       }
    }
  
@@ -379,6 +398,16 @@ class MeasureGroupGuiComposer {
         }
       }
     }));
+    guifyInstance.Register({
+      type: 'text',
+      listenMode: 'change',
+      label: getLocalized('guiGroupName'),
+      property: 'displayName',
+      object: groupBoundData, folder: groupFolder,
+      onChange: (data) => {
+        this._changeGroupName(group, data);
+      }
+    });
     guiObjects.push(guifyInstance.Register({
       type: 'checkbox',
       label: getLocalized('guiGroupIsRendered'),
@@ -434,6 +463,11 @@ class MeasureGroupGuiComposer {
     }
   }
    newGroup(guifyInstance, parentFolder, groupFolder, groupDenotation, baseDefaultCoords, measuresDefaultCoords, baseAbsoluteLength) {
+     for (var existingGroup of this.groups) {
+      if (existingGroup.groupFolder == groupFolder) {
+        throw new Error("Not unique group folder name");
+      }
+     }
      let guiObjects = [];
      guiObjects.push(guifyInstance.Register({
        type: 'folder',
@@ -467,7 +501,9 @@ class MeasureGroupGuiComposer {
          begin: createVector(Math.random()*300, Math.random()*300),
          end: createVector(300+Math.random()*700, 300+Math.random()*700),
          denotationOverride: denotationOverride,
-         guiObjects: null},
+         guiObjects: null,
+        },
+       displayName: groupFolder,
        baseAbsoluteLength: baseAbsoluteLength || 1.0,
        measuresAddedCounter: 0,
        measures: []
@@ -556,7 +592,7 @@ class MeasureGroupGuiComposer {
       destinationArray.push(prefix + getLocalized('toStringEnd'), ': [',
         measure.end.x, ',', measure.end.y, ']\n');
     }
-    destinationArray.push('- ' + getLocalized('toStringGroup'), ': "', groupFolder, '"\n');
+    destinationArray.push('- ' + getLocalized('toStringGroup'), ': "', group.data.displayName, '"\n');
 
     // reproducibility meta info
     destinationArray.push('  ' + getLocalized('toStringNumMeasurements'), ': ', groupBoundData.measures.length + 1, '\n');
