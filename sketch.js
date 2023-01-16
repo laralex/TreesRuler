@@ -660,7 +660,6 @@ function updateGridGui(imageWidth, imageHeight) {
     intervalComponent.value = intervalArray;
     intervalComponent.SetValue(intervalArray);
     intervalComponent._RefreshHandles();
-    print(intervalComponent.value);
   }
 
   updateIntervalComponent(getLocalized('gridHeightInterval'), 
@@ -718,7 +717,7 @@ function loadSettingsFromDefaults() {
 
 function preload() {
   assets.localization = loadJSON('./localization.json');
-  assets.font = loadFont('./assets/fonts/inconsolata/Inconsolata-Regular.ttf');
+  assets.font = loadFont('./assets/fonts/jetbrainsmono/JetBrainsMono-Regular.ttf');
   applicationGlobalState.imgView = new ImageAABBView();
 }
 
@@ -897,7 +896,6 @@ function forEachGridLine(panX, panY, zoom, callbackInner, callbackBorder) {
     // const nVerticals = gridSettings.gridNumOfVerticalLines;
     // const xDelta = (wHigh - wLow)/(nVerticals+1);
     const nVerticals = 2;
-    // print(gridSettings.gridTrunkWidthInterval);
     const vwLow = gridSettings.gridTrunkWidthInterval[0]*zoom + panX,
           vwHigh = gridSettings.gridTrunkWidthInterval[1]*zoom + panX;
     const xDelta = vwHigh - vwLow;

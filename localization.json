@@ -195,6 +195,10 @@
       "ENG": "Unit Measurement",
       "RUS": "Базисный Замер"
    },
+   "baseMeasureMark": {
+      "ENG": "(Unit)",
+      "RUS": "(Базисный)"
+   },
    "baseMeasureSuffix": {
       "ENG": "",
       "RUS": ""

@@ -19,7 +19,6 @@ function loadMeasurementsFromYamlDump(guifyInstance, measurementsGuiComposer, pa
     let baseMeasure = makeLine(group[getLocalized('toStringBaseMeasure')]);
     let measuresArray = group[getLocalized('toStringMeasures')];
     let baseAbsoluteLength = group[getLocalized('toStringAbsoluteLength')];
-    print('@', baseAbsoluteLength);
     if (!measuresArray) {
       measuresArray = [];
     }
@@ -70,9 +69,9 @@ function loadMeasurementsPreset(guifyInstance, measurementsGuiComposer, gridSett
 
    // add measurements for each horizontal grid line
    forEachGridLine(0, 0, 1.0, (i, gridLine) => {
-     heightDefaultMeasures.push(makeLine(dhigh + (i+1)*wd, hHigh, dhigh + (i+1)*wd, gridLine[1]));
-     crownDefaultMeasures.push(makeLine(Dlow, gridLine[1], Dhigh, gridLine[1]));
-     trunkDefaultMeasures.push(makeLine(dlow, gridLine[1], dhigh, gridLine[1]));
+     heightDefaultMeasures.push(makeLine(dhigh + (i+1)*wd, hHigh, dhigh + (i+1)*wd, gridLine[1], 'h' + i));
+     crownDefaultMeasures.push(makeLine(Dlow, gridLine[1], Dhigh, gridLine[1], 'D' + i));
+     trunkDefaultMeasures.push(makeLine(dlow, gridLine[1], dhigh, gridLine[1], 'd' + i));
    }, null)
    let newGroup = measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
       getLocalized('heightMeasurementsGroup'),
@@ -142,9 +141,14 @@ class MeasureGroupGuiComposer {
        y1: {object: measurementBoundData.end, property: 'y'},
        relativeLength: {object: measurementBoundData, property: 'relativeLength'},
        absoluteLength: {object: measurementBoundData, property: 'absoluteLength'},
-       denotationOverride: {object: measurementBoundData, property: 'denotationOverride'},
+       denotationOverride: {
+        object: measurementBoundData, 
+        property: 'denotationOverride',
+        onChange: (data) => {
+          this._changeMeasureDenotation(this.viewMeasure, data);
+        }
+      },
      }
-     print(measurementBoundData.denotationOverride);
      for(const [key, mapping] of Object.entries(boundMap)) {
        this.viewGuiObjects[key].binding.object = mapping.object;
        this.viewGuiObjects[key].binding.property = mapping.property;
@@ -187,7 +191,8 @@ class MeasureGroupGuiComposer {
    duplicateViewedMeasurement(guifyInstance) {
       let location = this._locateMeasurementObj(this.viewMeasure);
       if (location.measureGroup) {
-        this.addMeasure(guifyInstance, location.measureGroup);
+        this.addMeasure(guifyInstance, location.measureGroup,
+          {denotationOverride: location.measureGroup.data.denotation + location.measureGroup.data.measuresAddedCounter});
       }
    }
 
@@ -216,16 +221,12 @@ class MeasureGroupGuiComposer {
          type: 'text',
          label: getLocalized('measureDenotation'),
          object: this, property: 'dummyString',
-         onChange: (data) => {},
-         onInitialize: (data) => {},
        },
        x0 : {
          type: 'range',
          label: getLocalized('beginPointX'),
          min: 0, max: 1, step: 1,
          object: this, property: 'dummyVariable',
-         onChange: (data) => {},
-         onInitialize: (data) => {},
        },
        x1 : {
         type: 'range',
@@ -289,6 +290,14 @@ class MeasureGroupGuiComposer {
        objects.push(guifyInstance.Register(definition));
      }
      return objects;
+   }
+
+   _changeMeasureDenotation(measure, newDenotation) {
+      print(measure);
+      if (measure && measure.guiObjects && measure.guiObjects.length > 0) {
+        print('change denotation', newDenotation);
+        measure.guiObjects[0].input.textContent = newDenotation;
+      }
    }
  
    _addFloatNoSlider(guifyInstance, definition) {
@@ -401,7 +410,8 @@ class MeasureGroupGuiComposer {
       type: 'button',
       label: getLocalized('guiNewMeasure'),
       folder: groupFolder,
-      action: () => this.addMeasure(guifyInstance, group),
+      action: () => this.addMeasure(guifyInstance, group,
+        {denotationOverride: group.data.denotation + group.data.measuresAddedCounter}),
     }));
     const baseGuiObjects = this._addMeasureGui({
       guifyInstance: guifyInstance, parentFolder: groupFolder,
@@ -445,6 +455,10 @@ class MeasureGroupGuiComposer {
      if (groupDenotation !== undefined) {
        defaults.denotation = groupDenotation;
      }
+     let denotationOverride = null;
+     if (defaults.denotation) {
+       denotationOverride = defaults.denotation;
+     }
      let groupBoundData = {
        ...defaults,
        opacity: 1.0,
@@ -452,7 +466,7 @@ class MeasureGroupGuiComposer {
        baseMeasure: {
          begin: createVector(Math.random()*300, Math.random()*300),
          end: createVector(300+Math.random()*700, 300+Math.random()*700),
-         denotationOverride: null,
+         denotationOverride: denotationOverride,
          guiObjects: null},
        baseAbsoluteLength: baseAbsoluteLength || 1.0,
        measuresAddedCounter: 0,
