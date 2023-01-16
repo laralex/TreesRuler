@@ -132,6 +132,17 @@ async function showSaveFileDialog(suggestedName, saveSessionId) {
   return handle;
 }
 
+function clientSideDownload(textContent, filename, contentType) {
+    if(!contentType) {
+      contentType = 'application/octet-stream';
+    }
+    var a = document.createElement('a');
+    var blob = new Blob([textContent], {'type':contentType});
+    a.href = window.URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+}
+
 function showOpenFileDialog(contentCallback) {
   // const options = {
   //   id: saveSessionId,
@@ -148,6 +159,7 @@ function showOpenFileDialog(contentCallback) {
   // return handle;
   var input = document.createElement('input');
   input.type = 'file';
+  input.accept=".txt,.yaml"
   input.onchange = e => { 
     var file = e.target.files[0]; 
     var reader = new FileReader();
@@ -314,10 +326,14 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
         let messageBoxCloseFunc = () => {
           if (confirm(getLocalized('saveMeasurementsDialog'))) {
             (async function() {
-              let handle = await showSaveFileDialog(newFileName, 'save-measures');
-              let writable = await handle.createWritable();
-              await writable.write(measuresString);
-              await writable.close();
+              try {
+                let handle = await showSaveFileDialog(newFileName, 'save-measures');
+                let writable = await handle.createWritable();
+                await writable.write(measuresString);
+                await writable.close();
+              } catch {
+                clientSideDownload(measuresString, newFileName, "text/plain")
+              }
             })();
           }
         }
