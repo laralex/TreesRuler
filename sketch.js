@@ -599,7 +599,7 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
 
   let guifyBarButtons = document.getElementsByClassName('guify-bar-button');
   for (let element of guifyBarButtons) {
-    if (element.ariaLabel === null || !element.ariaLabel.includes("screen")) {
+    if (element && element.ariaLabel && !element.ariaLabel.includes("screen")) {
         element.innerText = getLocalized('controls');
       }
   }
