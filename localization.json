@@ -147,6 +147,10 @@
       "ENG": "Text size",
       "RUS": "Шрифт"
    },
+   "guiTextLengthsEnabled": {
+      "ENG": "Display lengths",
+      "RUS": "Показывать числа длин"
+   },
    "guiTextFloatPrecision": {
       "ENG": "Float precision",
       "RUS": "Знаков после запятой"
@@ -258,6 +262,10 @@
    "gridHeightInterval": {
       "ENG": "Vertical limits",
       "RUS": "Верх / Низ"
+   },
+   "gridTrunkWidthInterval": {
+      "ENG": "Trunk limits",
+      "RUS": "Границы ствола"
    },
    "gridNumOfInnerLines": {
       "ENG": "Num. of horizontals",

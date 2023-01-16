@@ -51,10 +51,10 @@ function loadMeasurementsPreset(guifyInstance, measurementsGuiComposer, gridSett
    }
 
    const hRoot = hHigh, h13 = hHigh-h*0.1, hDk = hHigh - h2 - hd*0.5, hD0 = hHigh-h*0.4;
-   const Dlow = wLow + w*0.1, Dhigh = wHigh - w*0.1;
-   const dlow = w2 - w*0.1, dhigh = w2 + w*0.1;
+   const dlow = gridSettings.gridTrunkWidthInterval[0], dhigh = gridSettings.gridTrunkWidthInterval[1];
+   const Dlow = dlow - w*0.4, Dhigh = dhigh + w*0.4;
    const heightDefaultMeasures = [
-      makeLine(w2    , hHigh  , w2   , hLow      , 'H'   ), // full height
+      makeLine(1*wd     , hHigh  , 1*wd    , hLow      , 'H'   ), // full height
       makeLine(2*wd    , hHigh  , 0+2*wd   , hDk     , 'h_Dk'), // height to crown max
       makeLine(3*wd    , hHigh  , 0+3*wd   , hD0     , 'h_D0'), // height to crown beginning
       makeLine(4*wd    , hHigh  , 0+4*wd   , h13  , 'h_d1.3'), // height to 1.3 m

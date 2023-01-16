@@ -28,6 +28,7 @@ let generalSettings = new function() {
   this.language = 'Russian';
   this.lineWidth = 8;
   this.textWidth = 20;
+  this.textLengthsEnabled = false;
   this.textFloatPrecision = 3;
   this.guiOpacity = 0.9;
   this.guiWidth = 400;
@@ -50,6 +51,7 @@ let gridSettings = new function() {
   this.gridEnabled = true;
   this.gridHeightInterval = [300, 2000];
   this.gridWidthInterval = [0, 1];
+  this.gridTrunkWidthInterval = [0, 1];
   this.gridNumOfInnerLines = 5;
   this.gridNumOfVerticalLines = 1;
   this.gridColor = '#aaffff';
@@ -466,19 +468,27 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
       }
     },
     {
+      type: 'interval', label: getLocalized('gridTrunkWidthInterval'),
+      property: 'gridTrunkWidthInterval',
+      min: 0, max: 1000, precision: 0, step: 1,
+      onChange: (data) => {
+        setCookie('gridSettings', gridSettings);
+      }
+    },
+    {
       type: 'range',label: getLocalized('gridNumOfInnerLines'),
       property: 'gridNumOfInnerLines', min: 0, max: 50, step: 1,
       onChange: (data) => {
         setCookie('gridSettings', gridSettings);
       }
     },
-    {
-      type: 'range',label: getLocalized('gridNumOfVerticalLines'),
-      property: 'gridNumOfVerticalLines', min: 0, max: 50, step: 1,
-      onChange: (data) => {
-        setCookie('gridSettings', gridSettings);
-      }
-    },
+    // {
+    //   type: 'range',label: getLocalized('gridNumOfVerticalLines'),
+    //   property: 'gridNumOfVerticalLines', min: 0, max: 50, step: 1,
+    //   onChange: (data) => {
+    //     setCookie('gridSettings', gridSettings);
+    //   }
+    // },
     {
       type: 'color', label: getLocalized('gridColor'),
       property: 'gridColor', format: 'hex',
@@ -536,6 +546,14 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
     property: 'textWidth',
     onChange: (data) => setCookie('generalSettings', generalSettings),
   });
+  guifyInstance.Register({
+    type: 'checkbox',
+    label: getLocalized('guiTextLengthsEnabled'),
+    folder: getLocalized('lineFolder'),
+    object: generalSettings,
+    property: 'textLengthsEnabled',
+    onChange: (data) => setCookie('generalSettings', generalSettings),
+  })
   guifyInstance.Register({
     type: 'range',
     label: getLocalized('guiTextFloatPrecision'),
@@ -616,14 +634,27 @@ function loadTreeImage(uriOrBase64, isFilePath) {
 }
 
 function updateGridGui(imageWidth, imageHeight) {
-  let intervalComponent = applicationGlobalState.gui.loadedComponents.find(component => 
-    component.opts.label == getLocalized('gridHeightInterval'));
-  intervalComponent.max = intervalComponent.maxPos = intervalComponent.input.max = imageHeight;
-  gridSettings.gridHeightInterval[1] = min(imageHeight, gridSettings.gridHeightInterval[1]);
-  intervalComponent.SetValue(gridSettings.gridHeightInterval);
-  intervalComponent._RefreshHandles();
+  const updateIntervalComponent = (label, newMin, newMax, intervalArray) => {
+    let intervalComponent = applicationGlobalState.gui.loadedComponents.find(
+      component => component.opts.label == label);
+    intervalComponent.min = intervalComponent.minPos = intervalComponent.input.min = newMin;
+    intervalComponent.max = intervalComponent.maxPos = intervalComponent.input.max = newMax;
+    intervalArray[0] = min(newMax, intervalArray[0]);
+    intervalArray[1] = min(newMax, intervalArray[1]);
+    intervalComponent.value = intervalArray;
+    intervalComponent.SetValue(intervalArray);
+    intervalComponent._RefreshHandles();
+    print(intervalComponent.value);
+  }
+
+  updateIntervalComponent(getLocalized('gridHeightInterval'), 
+    0, imageHeight, gridSettings.gridHeightInterval);
+
+  gridSettings.gridTrunkWidthInterval  = [imageWidth*0.49, imageWidth*0.51];
+  updateIntervalComponent(getLocalized('gridTrunkWidthInterval'),
+    0, imageWidth, gridSettings.gridTrunkWidthInterval);
+
   gridSettings.gridWidthInterval = [0, imageWidth];
-  // intervalComponent.input.oninput();
 }
 
 function resetZoom() {
@@ -759,11 +790,13 @@ function drawMeasurement(lineColor, groupDenotation, measurementData, panX, panY
   textSize(textWeight);
   // print(measurementData.denotationOverride)
   var lengthText = measurementData.denotationOverride || groupDenotation;
-  if (!isBaseMeasurement) {
-    lengthText += '=' + measurementData.relativeLength.toFixed(floatPrecision).toString();
-  }
-  if (abs(measurementData.relativeLength - measurementData.absoluteLength) > 0.001) {
-    lengthText = lengthText + ' (' + measurementData.absoluteLength.toFixed(floatPrecision) + ')';
+  if (generalSettings.textLengthsEnabled) {
+    if (!isBaseMeasurement) {
+      lengthText += '=' + measurementData.relativeLength.toFixed(floatPrecision).toString();
+    }
+    if (abs(measurementData.relativeLength - measurementData.absoluteLength) > 0.001) {
+      lengthText = lengthText + ' (' + measurementData.absoluteLength.toFixed(floatPrecision) + ')';
+    }
   }
   strokeWeight(0);
   let textX = endX + 15*zoom, textY = endY, textPadding = textWeight*0.2;
@@ -845,10 +878,15 @@ function forEachGridLine(panX, panY, zoom, callbackInner, callbackBorder) {
     callbackBorder(0, [wLow, hLow, wHigh, hLow]);
     callbackBorder(nLines, [wLow, hHigh, wHigh, hHigh]);
     // verticals
-    const nVerticals = gridSettings.gridNumOfVerticalLines;
-    const xDelta = (wHigh - wLow)/(nVerticals+1);
-    for (var i = 1; i < nVerticals+1; ++i) {
-      let x = wLow + i*xDelta;
+    // const nVerticals = gridSettings.gridNumOfVerticalLines;
+    // const xDelta = (wHigh - wLow)/(nVerticals+1);
+    const nVerticals = 2;
+    // print(gridSettings.gridTrunkWidthInterval);
+    const vwLow = gridSettings.gridTrunkWidthInterval[0]*zoom + panX,
+          vwHigh = gridSettings.gridTrunkWidthInterval[1]*zoom + panX;
+    const xDelta = vwHigh - vwLow;
+    for (var i = 0; i < nVerticals; ++i) {
+      let x = vwLow + i*xDelta;
       callbackBorder(0, [x, hLow, x, hHigh]);
     }
   }
@@ -963,8 +1001,11 @@ function mouseDragged() {
         }
         applicationGlobalState.measurementsGuiComposer.forEachPoint(computeSnapping, true);
         // snap to grid levels
-        forEachGridLine(0, 0, 1.0,(lineIdx, lineCoords) =>
+        if (gridSettings.gridEnabled) {
+          forEachGridLine(0, 0, 1.0,(lineIdx, lineCoords) =>
           computeSnapping(createVector(lineCoords[0], lineCoords[1])), null);
+        }
+        
         // snap to image borders
         computeSnapping(createVector(0, 0));
         computeSnapping(createVector(
@@ -1018,7 +1059,12 @@ function mouseDragged() {
       let draggedInterval = applicationGlobalState.draggedGrid.interval;
       let draggedCoord = applicationGlobalState.draggedGrid.intervalCoord;
       let isX = applicationGlobalState.draggedGrid.isX;
-      draggedInterval[draggedCoord] = isX ? mouseVec.x : mouseVec.y;
+      let newVal = isX ? mouseVec.x : mouseVec.y;
+      if (draggedCoord == 0) {
+        draggedInterval[draggedCoord] = min(newVal, draggedInterval[draggedCoord + 1]);
+      } else {
+        draggedInterval[draggedCoord] = max(newVal, draggedInterval[draggedCoord - 1]);
+      }
     }
   }
 }
@@ -1087,14 +1133,26 @@ function mousePressed() {
     } else if (nearestLine !== null) {// drag whole line of measurement
       applicationGlobalState.draggedEndpoints = nearestLine;
       applicationGlobalState.measurementsGuiComposer.viewMeasurement(nearestLineMeasurement);
-    } else { // drag grid limit
+    } else { // drag grid limi < targetLineDistancet
       const targetLineDistance = generalSettings.lineWidth/imageViewSettings.zoom;
       for (var i = 0; i < 2; ++i) {
-        if (abs(gridSettings.gridHeightInterval[i] - mouseVec.y) < targetLineDistance) {
+        let sameYlevel = abs(gridSettings.gridHeightInterval[i] - mouseVec.y) < targetLineDistance;
+        if (sameYlevel) {
           applicationGlobalState.draggedGrid = {
             interval: gridSettings.gridHeightInterval,
             intervalCoord: i,
             isX: false
+          }
+        }
+      }
+      for (var i = 0; i < 2; ++i) {
+        const sameXlevel = abs(gridSettings.gridTrunkWidthInterval[i] - mouseVec.x) < targetLineDistance;
+        const onGridY = gridSettings.gridHeightInterval[0] <= mouseVec.y && mouseVec.y <= gridSettings.gridHeightInterval[1];
+        if (sameXlevel && onGridY) {
+          applicationGlobalState.draggedGrid = {
+            interval: gridSettings.gridTrunkWidthInterval,
+            intervalCoord: i,
+            isX: true,
           }
         }
       }
