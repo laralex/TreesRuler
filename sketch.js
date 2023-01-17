@@ -381,6 +381,7 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
           applicationGlobalState.gui,
           applicationGlobalState.measurementsGuiComposer);
         updateGridGui(
+          guifyInstance,
           applicationGlobalState.loadedImage.width,
           applicationGlobalState.loadedImage.height,
         );
@@ -612,10 +613,11 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
   const img = applicationGlobalState.loadedImage;
   if (img) {
     measurementsGuiComposer.updateViewGui(img.width, img.height);
-    updateGridGui(img.width, img.height);
+    updateGridGui(guifyInstance, img.width, img.height);
   }
   measurementsGuiComposer.groups.forEach(group => {
     measurementsGuiComposer._addGroupGui(guifyInstance, getLocalized('measuresFolder'), group);
+    // print(group.data.denotation, group.data.measuresAddedCounter);
   })
 
   let guifyBarButtons = document.getElementsByClassName('guify-bar-button');
@@ -645,7 +647,7 @@ function loadTreeImage(uriOrBase64, isFilePath) {
         let w = applicationGlobalState.loadedImage.width,
             h = applicationGlobalState.loadedImage.height
         applicationGlobalState.measurementsGuiComposer.updateViewGui(w, h);
-        updateGridGui(w, h);
+        updateGridGui(applicationGlobalState.gui, w, h);
       }
       print('Loaded image', uriOrBase64.slice(0, 100));
     });
@@ -654,10 +656,14 @@ function loadTreeImage(uriOrBase64, isFilePath) {
   }
 }
 
-function updateGridGui(imageWidth, imageHeight) {
+function updateGridGui(guifyInstance, imageWidth, imageHeight) {
   const updateIntervalComponent = (label, newMin, newMax, intervalArray) => {
-    let intervalComponent = applicationGlobalState.gui.loadedComponents.find(
+    let intervalComponent = guifyInstance.loadedComponents.find(
       component => component.opts.label == label);
+    if (!intervalComponent) {
+      print('Interval component not found:', label);
+      return;
+    }
     intervalComponent.min = intervalComponent.minPos = intervalComponent.input.min = newMin;
     intervalComponent.max = intervalComponent.maxPos = intervalComponent.input.max = newMax;
     intervalArray[0] = min(newMax, intervalArray[0]);

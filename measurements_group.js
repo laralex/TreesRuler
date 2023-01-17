@@ -24,15 +24,17 @@ function loadMeasurementsFromYamlDump(guifyInstance, measurementsGuiComposer, pa
     }
     measuresArray = measuresArray.map(measureObj => makeLine(measureObj));
     print(measuresArray);
-    while(true) {
+    let nTries = 30;
+    while(nTries > 0) {
+      --nTries;
       try {
         let newGroup = measurementsGuiComposer.newGroup(
           guifyInstance, getLocalized('measuresFolder'), groupFolder,
         (baseMeasure.denotationOverride || 'a')[0], // TODO: hack
         baseMeasure, measuresArray, baseAbsoluteLength);
-        newGroup.data.measuresAddedCounter = 0;
         break;
-      } catch {
+      } catch (exception) {
+        print('Error loading from file folder', groupFolder, exception);
         groupFolder = groupFolder + '0';
       }
     }
@@ -83,15 +85,15 @@ function loadMeasurementsPreset(guifyInstance, measurementsGuiComposer, gridSett
    let newGroup = measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
       getLocalized('heightMeasurementsGroup'),
       'h', heightDefaultMeasures[0], heightDefaultMeasures.slice(1));
-   newGroup.data.measuresAddedCounter = 0;
+   newGroup.data.measuresAddedCounter = gridSettings.gridNumOfInnerLines+1;
    newGroup = measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
       getLocalized('crownDiameterMeasurementsGroup'),
       'D', crownDefaultMeasures[0], crownDefaultMeasures.slice(1));
-   newGroup.data.measuresAddedCounter = 0;
+   newGroup.data.measuresAddedCounter = gridSettings.gridNumOfInnerLines+1;
    newGroup = measurementsGuiComposer.newGroup(guifyInstance, getLocalized('measuresFolder'),
       getLocalized('truckDiameterMeasurementsGroup'),
       'd', trunkDefaultMeasures[0], trunkDefaultMeasures.slice(1));
-   newGroup.data.measuresAddedCounter = 0;
+   newGroup.data.measuresAddedCounter = gridSettings.gridNumOfInnerLines+1;
 }
 
 class MeasureGroupGuiComposer {
