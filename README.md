@@ -23,6 +23,54 @@
 
 ![Main page](readme/mainscreen.png)
 
+## Example output YAML file
+```
+- group_name: "Height - H"
+  number_of_measurements: 9
+  unit_absolute_length: 15.2
+  image_rotation_degrees: 0
+  unit_measurement:
+    denotation: H
+    begin_point_px: [46.08,3105.6023335176355]
+    end_point_px: [46.08,91.0996597208443]
+  measurements:
+  - denotation: h_Dk
+    begin_point_px: [92.16,3105.6023335176355]
+    end_point_px: [92.16,1449.7169035370705]
+  - denotation: h_D0
+    begin_point_px: [138.24,3105.6023335176355]
+    end_point_px: [138.24,2181.365400177257]
+  - denotation: h_d1.3
+    begin_point_px: [184.32,3105.6023335176355]
+    end_point_px: [184.32,2804.1520661379564]
+  - denotation: h1
+    begin_point_px: [2396.16,3105.6023335176355]
+    end_point_px: [2396.16,593.5167720203095]
+  - denotation: h2
+    begin_point_px: [2442.24,3105.6023335176355]
+    end_point_px: [2442.24,1095.9338843197747]
+  - denotation: h3
+    begin_point_px: [2488.32,3105.6023335176355]
+    end_point_px: [2488.32,1598.35099661924]
+  - denotation: h4
+    begin_point_px: [2534.4,3105.6023335176355]
+    end_point_px: [2534.4,2100.7681089187054]
+  - denotation: h5
+    begin_point_px: [2580.48,3105.6023335176355]
+    end_point_px: [2580.48,2603.18522121817]
+  pretty_table: >
+    Measurement             RelativeLength     AbsoluteLength     
+    H                       1                  15.2               
+    h1                      0.833333333333     12.66666666666     
+    h2                      0.666666666666     10.13333333333     
+    h_Dk                    0.549306339773     8.349456364556     
+    h3                      0.499999999999     7.599999999999     
+    h4                      0.333333333333     5.066666666666     
+    h_D0                    0.306596819891     4.660271662350     
+    h5                      0.166666666666     2.533333333333     
+    h_d1.3                  0.100000000000     1.520000000000
+```
+
 ## Running the application:
 
 There might be my web-site running with this application, try:
