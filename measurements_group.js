@@ -78,7 +78,7 @@ function loadMeasurementsPreset(guifyInstance, measurementsGuiComposer, gridSett
 
    // add measurements for each horizontal grid line
    forEachGridLine(0, 0, 1.0, (i, gridLine) => {
-     heightDefaultMeasures.push(makeLine(dhigh + (i+1)*wd, hHigh, dhigh + (i+1)*wd, gridLine[1], 'h' + i));
+     heightDefaultMeasures.push(makeLine(w + (i+1)*wd, hHigh, w + (i+1)*wd, gridLine[1], 'h' + i));
      crownDefaultMeasures.push(makeLine(Dlow, gridLine[1], Dhigh, gridLine[1], 'D' + i));
      trunkDefaultMeasures.push(makeLine(dlow, gridLine[1], dhigh, gridLine[1], 'd' + i));
    }, null)
