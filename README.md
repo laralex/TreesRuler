@@ -74,7 +74,7 @@
 ## Running the application:
 
 There might be my web-site running with this application, try:
- * [http://www.graphicsfore.pics](http://www.graphicsfore.pics)
+ * [http://www.graphicsfore.pics/eng](http://www.graphicsfore.pics/eng)
  * [http://95.85.71.64](http://95.85.71.64)
 
 ## Running the application locally
