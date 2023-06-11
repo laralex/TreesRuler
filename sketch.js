@@ -40,6 +40,7 @@ let generalSettings = new function(language) {
   this.guiTheme = 'yorha';
   this.guiAskUnsaved = true;
   this.allowSnapping = true;
+  this.sourceCodeUrl = "https://github.com/laralex/TreesRuler";
 }(defaultLanguage);
 
 let crosshairSettings = new function() {
@@ -260,6 +261,13 @@ function setupGui(guifyInstance, measurementsGuiComposer) {
       label: getLocalized('instructionsButton'),
       action: () => {
         makeCustomMessageBox(getLocalized('instructionsContent'));
+      }
+    },
+    {
+      type: 'button',
+      label: getLocalized('sourceCodeButton'),
+      action: () => {
+        window.location.href = generalSettings.sourceCodeUrl;
       }
     },
     {

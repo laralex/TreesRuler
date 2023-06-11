@@ -398,5 +398,9 @@
    "instructionsButton": {
       "ENG": "Application Manual",
       "RUS": "Справка по использованию"
+   },
+   "sourceCodeButton": {
+      "ENG": "GitHub Project Page",
+      "RUS": "Исходный код программы"
    }
 }
