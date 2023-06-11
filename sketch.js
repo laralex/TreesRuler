@@ -19,9 +19,14 @@ let applicationGlobalState = new function() {
   this.measurementsGuiComposer = null;
   this.gui = null;
   this.loadedImage = null;
-  this.loadedImageFilename = null;
   this.shownPopupElement = null;
 }();
+
+var thisJsScript = document.currentScript;
+var defaultLanguage = thisJsScript.getAttribute('data-DEFAULT_LANGUAGE');   
+if (typeof defaultLanguage === "undefined" ) {
+  var defaultLanguage = 'Russian';
+}
 
 // bound to be visualized in GUI, and receiving new values from GUI
 let generalSettings = new function(language) {
@@ -35,8 +40,7 @@ let generalSettings = new function(language) {
   this.guiTheme = 'yorha';
   this.guiAskUnsaved = true;
   this.allowSnapping = true;
-}(GLOBAL_SETTING_LANGUAGE);
-let generalSettingsDefaults = Object.assign({}, generalSettings);
+}(defaultLanguage);
 
 let crosshairSettings = new function() {
   this.crosshairEnabled = true;
