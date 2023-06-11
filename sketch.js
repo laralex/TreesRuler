@@ -24,8 +24,8 @@ let applicationGlobalState = new function() {
 }();
 
 // bound to be visualized in GUI, and receiving new values from GUI
-let generalSettings = new function() {
-  this.language = 'Russian';
+let generalSettings = new function(language) {
+  this.language = language;
   this.lineWidth = 8;
   this.textWidth = 20;
   this.textLengthsEnabled = false;
@@ -35,7 +35,7 @@ let generalSettings = new function() {
   this.guiTheme = 'yorha';
   this.guiAskUnsaved = true;
   this.allowSnapping = true;
-}();
+}(GLOBAL_SETTING_LANGUAGE);
 let generalSettingsDefaults = Object.assign({}, generalSettings);
 
 let crosshairSettings = new function() {
